@@ -56,4 +56,5 @@ func HandleInteraction(s *discordgo.Session, i *discordgo.InteractionCreate) {
 
 var AllCommands = []*Command{
 	AuctionCommand,
+	NominateCommand,
 }

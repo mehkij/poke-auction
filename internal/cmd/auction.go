@@ -34,8 +34,10 @@ var AuctionCommand = &Command{
 }
 
 var (
-	participants []*types.Player
-	mu           sync.Mutex
+	participants    []*types.Player
+	mu              sync.Mutex
+	auctionStates   = make(map[string]*types.AuctionState)
+	auctionStatesMu sync.Mutex
 )
 
 func JoinAuction(i *discordgo.InteractionCreate) []*types.Player {
@@ -60,7 +62,9 @@ func JoinAuction(i *discordgo.InteractionCreate) []*types.Player {
 	return participants
 }
 
-func AuctionTimer(s *discordgo.Session, i *discordgo.InteractionCreate, timerStr string) {
+func AuctionTimer(s *discordgo.Session, i *discordgo.InteractionCreate, timerStr string, stopSignal chan bool) {
+	defer cleanupAuction(i.Message.ID)
+
 	timeLeft, err := strconv.Atoi(timerStr)
 	if err != nil {
 		log.Printf("error converting timer to int: %s", err)
@@ -86,6 +90,11 @@ func AuctionTimer(s *discordgo.Session, i *discordgo.InteractionCreate, timerStr
 			usernames = append(usernames, p.Username)
 		}
 
+		participantsValue := "No participants yet..."
+		if len(usernames) > 0 {
+			participantsValue = strings.Join(usernames, "\n")
+		}
+
 		edit := &discordgo.MessageEdit{
 			Channel: i.ChannelID,
 			ID:      i.Message.ID,
@@ -96,7 +105,7 @@ func AuctionTimer(s *discordgo.Session, i *discordgo.InteractionCreate, timerStr
 					Fields: []*discordgo.MessageEmbedField{
 						{
 							Name:   "Participants",
-							Value:  strings.Join(usernames, "\n"),
+							Value:  participantsValue,
 							Inline: false,
 						},
 					},
@@ -117,14 +126,20 @@ func AuctionTimer(s *discordgo.Session, i *discordgo.InteractionCreate, timerStr
 		return
 	}
 
-	for range ticker.C {
-		if time.Now().After(endTime) {
-			updateMessage()
+	for {
+		select {
+		case <-stopSignal:
+			NominationPhase(s, i)
 			return
-		}
-		if err := updateMessage(); err != nil {
-			log.Printf("error updating message: %s", err)
-			return
+		case <-ticker.C:
+			if err := updateMessage(); err != nil {
+				log.Printf("error updating message: %s", err)
+				continue
+			}
+			if time.Now().After(endTime) {
+				NominationPhase(s, i)
+				return
+			}
 		}
 	}
 }
@@ -144,7 +159,28 @@ func HandleAuctionInteraction(s *discordgo.Session, i *discordgo.InteractionCrea
 }
 
 func HandleForceStartAuction(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	return
+	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseDeferredMessageUpdate,
+	})
+	if err != nil {
+		log.Printf("error responding to interaction: %s\n", err)
+		return
+	}
+
+	auctionStatesMu.Lock()
+	state, exists := auctionStates[i.Message.ID]
+	if exists {
+		state.StopSignal <- true
+		state.NominationOrder = RollNominationOrder()
+		state.NominationPhase = true
+	}
+	auctionStatesMu.Unlock()
+
+	err = NominationPhase(s, i)
+	if err != nil {
+		log.Printf("error starting nomination phase: %s\n", err)
+		s.ChannelMessageSend(i.ChannelID, fmt.Sprintf("Error starting nomination phase: %s", err))
+	}
 }
 
 func AuctionCallback(s *discordgo.Session, i *discordgo.InteractionCreate) {
@@ -154,12 +190,18 @@ func AuctionCallback(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	// Get timer value directly from command options
 	timerStr := i.ApplicationCommandData().Options[1].StringValue()
 
-	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+	gen, err := strconv.Atoi(i.ApplicationCommandData().Options[0].Value.(string))
+	if err != nil {
+		log.Println("error while converting string to int")
+		return
+	}
+
+	err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
 			Embeds: []*discordgo.MessageEmbed{
 				{
-					Title:       fmt.Sprintf("The Gen %s auction is beginning!", i.ApplicationCommandData().Options[0].StringValue()),
+					Title:       fmt.Sprintf("The Gen %d auction is beginning!", gen),
 					Description: "Please register by clicking the button.",
 					Fields: []*discordgo.MessageEmbedField{
 						{
@@ -208,6 +250,32 @@ func AuctionCallback(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	}
 	newInteraction.Message = msg
 
-	// Start the timer with the original timer value
-	go AuctionTimer(s, newInteraction, timerStr)
+	stopSignal := make(chan bool)
+	auctionStatesMu.Lock()
+	if oldState, exists := auctionStates[msg.ID]; exists {
+		close(oldState.StopSignal)
+		delete(auctionStates, msg.ID)
+	}
+	auctionStates[msg.ID] = &types.AuctionState{StopSignal: stopSignal, GenNumber: gen, ChannelID: msg.ChannelID}
+	log.Printf("Auction state set: msgID=%s, ChannelID=%s", msg.ID, msg.ChannelID)
+	auctionStatesMu.Unlock()
+
+	// Start the timer with the original timer value with a cleanup channel
+	go AuctionTimer(s, newInteraction, timerStr, stopSignal)
+}
+
+// Signal cleanup helper function
+func cleanupAuction(messageID string) {
+	auctionStatesMu.Lock()
+	defer auctionStatesMu.Unlock()
+
+	if state, exists := auctionStates[messageID]; exists {
+		select {
+		case <-state.StopSignal:
+
+		default:
+			close(state.StopSignal)
+		}
+		// delete(auctionStates, messageID)
+	}
 }
