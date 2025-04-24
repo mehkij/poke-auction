@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/mehkij/poke-auction/internal/types"
+	"github.com/mehkij/poke-auction/internal/utils"
 )
 
 func FetchPokemon(gen int, name string) (*types.Pokemon, error) {
@@ -33,5 +34,48 @@ func FetchPokemon(gen int, name string) (*types.Pokemon, error) {
 
 	pokemon.Name = strings.ToUpper(name[:1]) + name[1:]
 
+	sprite, err := FetchPokemonImage(gen, name)
+	if err != nil {
+		return nil, err
+	}
+
+	pokemon.Sprite = sprite
+
 	return pokemon, nil
+}
+
+func FetchPokemonImage(gen int, name string) (string, error) {
+	url := "https://pokeapi.co/api/v2/pokemon/" + name + "/"
+	res, err := http.Get(url)
+	if err != nil {
+		return "", err
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("HTTP request failed with status code: %d", res.StatusCode)
+	}
+
+	var data map[string]any
+
+	err = json.NewDecoder(res.Body).Decode(&data)
+	if err != nil {
+		return "", err
+	}
+
+	genNum := fmt.Sprintf("generation-%s", utils.ToRoman(gen))
+
+	sprites := data["sprites"].(map[string]any)
+	versions := sprites["versions"].(map[string]any)
+	generation := versions[genNum].(map[string]any)
+
+	var spriteMap map[string]any
+	for _, v := range generation {
+		spriteMap = v.(map[string]any)
+		break
+	}
+
+	front_default := spriteMap["front_default"].(string)
+
+	return front_default, nil
 }
