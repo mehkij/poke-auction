@@ -18,6 +18,8 @@ type Pokemon struct {
 	Moves     []string        `json:"moves,omitempty"`
 	Roles     map[string]Role `json:"roles,omitempty"`
 	IVs       StatMap         `json:"ivs,omitempty"`
+
+	Sprite string
 }
 
 // PokemonMap represents the top-level JSON structure where pokemon name is the key
