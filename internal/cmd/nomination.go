@@ -165,22 +165,6 @@ func NominateCallback(s *discordgo.Session, i *discordgo.InteractionCreate) {
 					Image:  image,
 				},
 			},
-			Components: []discordgo.MessageComponent{
-				discordgo.ActionsRow{
-					Components: []discordgo.MessageComponent{
-						discordgo.Button{
-							Label:    "Join Auction",
-							Style:    discordgo.PrimaryButton,
-							CustomID: "join_auction",
-						},
-						discordgo.Button{
-							Label:    "Force Start",
-							Style:    discordgo.DangerButton,
-							CustomID: "force_start",
-						},
-					},
-				},
-			},
 		},
 	})
 	if err != nil {
