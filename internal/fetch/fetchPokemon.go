@@ -27,18 +27,19 @@ func FetchPokemon(gen int, name string) (*types.Pokemon, error) {
 		return nil, fmt.Errorf("failed to decode JSON: %w", err)
 	}
 
-	pokemon, exists := pokemonMap[name]
+	pokemonName := strings.ToUpper(name[:1]) + name[1:]
+
+	pokemon, exists := pokemonMap[pokemonName]
 	if !exists {
 		return nil, fmt.Errorf("pokemon %s not found", name)
 	}
 
-	pokemon.Name = strings.ToUpper(name[:1]) + name[1:]
-
-	sprite, err := FetchPokemonImage(gen, name)
+	sprite, err := FetchPokemonImage(gen, pokemonName)
 	if err != nil {
 		return nil, err
 	}
 
+	pokemon.Name = pokemonName
 	pokemon.Sprite = sprite
 
 	return pokemon, nil
