@@ -141,6 +141,7 @@ func HandleForceStartAuction(s *discordgo.Session, i *discordgo.InteractionCreat
 	state, exists := auctionStates[i.Message.ID]
 	if exists {
 		state.StopSignal <- true
+		state.CurrentNominator = -1 // Starts at -1 so that when NominationPhase is called, it is incremented to 0
 		state.NominationOrder = RollNominationOrder()
 		state.NominationPhase = true
 	}

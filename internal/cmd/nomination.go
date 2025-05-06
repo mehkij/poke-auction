@@ -65,20 +65,31 @@ func NominationPhase(s *discordgo.Session, i *discordgo.InteractionCreate) error
 		return err
 	}
 
+	log.Println("Locking Mutex...")
 	auctionStatesMu.Lock()
 	state, exists := auctionStates[i.Message.ID]
-	auctionStatesMu.Unlock()
-
 	if !exists || len(state.NominationOrder) == 0 {
 		return fmt.Errorf("no nomination order found")
 	}
 
+	log.Println("Incrementing CurrentNominator...")
+	// Ensure that incrementing the pointer doesn't exceed length of array, and set the pointer to 0 if it does.
+	state.CurrentNominator++
+	if state.CurrentNominator == len(state.NominationOrder) {
+		state.CurrentNominator = 0
+		log.Println("Pointer is equal to NominationOrder length, resetting pointer!")
+	}
+	auctionStatesMu.Unlock()
+	log.Println("Mutex Unlocked.")
+
+	log.Println("Creating embed...")
 	embed := &discordgo.MessageEmbed{
-		Title:       fmt.Sprintf("The nomination phase has begun! It is %s's turn to nominate a Pokemon.", state.NominationOrder[0].Username),
+		Title:       fmt.Sprintf("The nomination phase has begun! It is %s's turn to nominate a Pokemon.", state.NominationOrder[state.CurrentNominator].Username),
 		Description: `Use "/nominate" to pick a Pokemon to nominate.`,
 	}
 
-	if user, err := s.User(state.NominationOrder[0].UserID); err == nil && user != nil {
+	log.Println("Setting embed image...")
+	if user, err := s.User(state.NominationOrder[state.CurrentNominator].UserID); err == nil && user != nil {
 		embed.Image = &discordgo.MessageEmbedImage{
 			URL: user.AvatarURL(""),
 		}
@@ -94,11 +105,13 @@ func NominationPhase(s *discordgo.Session, i *discordgo.InteractionCreate) error
 	}
 
 	auctionStatesMu.Lock()
+	log.Println("Setting Nomination Phase to true...")
 	state.NominationPhase = true
 	auctionStatesMu.Unlock()
 
 	_, err := s.ChannelMessageEditComplex(edit)
 
+	log.Println("Done setting up Nomination Phase!")
 	return err
 }
 
