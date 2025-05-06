@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/mehkij/poke-auction/internal/export"
 	"github.com/mehkij/poke-auction/internal/types"
 	"github.com/mehkij/poke-auction/internal/utils"
 )
@@ -134,6 +135,8 @@ func BidTimer(s *discordgo.Session, i *discordgo.InteractionCreate, msg *discord
 			if err != nil {
 				log.Printf("error updating final message: %v", err)
 			}
+
+			export.ExportTeam(s, i, participants, state.GenNumber)
 			return
 		}
 
