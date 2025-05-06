@@ -188,8 +188,15 @@ func ExportTeam(s *discordgo.Session, i *discordgo.InteractionCreate, players []
 }
 
 func WriteToFile(data []byte, username string) (string, []byte, error) {
+	teamsDir := "teams"
+	if err := os.MkdirAll(teamsDir, 0755); err != nil {
+		return "", nil, fmt.Errorf("failed to create teams directory: %w", err)
+	}
+
 	filename := fmt.Sprintf("%s_team.txt", username)
-	err := os.WriteFile(filename, data, 0644)
+	filepath := fmt.Sprintf("%s/%s", teamsDir, filename)
+
+	err := os.WriteFile(filepath, data, 0644)
 	if err != nil {
 		return "", nil, err
 	}
