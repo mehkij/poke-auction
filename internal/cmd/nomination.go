@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
-	"strings"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
@@ -105,18 +104,22 @@ func NominationPhase(s *discordgo.Session, i *discordgo.InteractionCreate) error
 
 func NominateCallback(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	auctionStatesMu.Lock()
+
 	log.Printf("NominateCallback called in channel: %s\n", i.ChannelID)
 	for msgID, state := range auctionStates {
 		log.Printf("State: msgID=%s, ChannelID=%s, NominationPhase=%v", msgID, state.ChannelID, state.NominationPhase)
 	}
 
 	var activeState *types.AuctionState
-	for _, state := range auctionStates {
+	var messageID string
+	for id, state := range auctionStates {
 		if state.NominationPhase && state.ChannelID == i.ChannelID {
 			activeState = state
+			messageID = id
 			break
 		}
 	}
+
 	auctionStatesMu.Unlock()
 
 	if activeState == nil || !activeState.NominationPhase {
@@ -139,36 +142,57 @@ func NominateCallback(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		return
 	}
 
+	// Immediately acknowledge interaction
+	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Content: fmt.Sprintf("Nominating %s...", pokemonName),
+			Flags:   discordgo.MessageFlagsEphemeral,
+		},
+	})
+	if err != nil {
+		log.Printf("error responding to interaction: %s\n", err)
+		return
+	}
+
 	pokemon, err := fetch.FetchPokemon(activeState.GenNumber, pokemonName)
 	if err != nil {
 		log.Printf("error nominating pokemon: %s\n", err)
 		return
 	}
 
-	fields := []*discordgo.MessageEmbedField{
-		{
-			Name:  "Ability",
-			Value: strings.Join(pokemon.Abilities, "\n"),
-		},
+	auctionStatesMu.Lock()
+	activeState.NominatedPokemon = pokemon
+	auctionStatesMu.Unlock()
+
+	msg, err := s.ChannelMessage(i.ChannelID, messageID)
+	if err != nil {
+		log.Printf("could not fetch message: %s\n", err)
+		return
 	}
+
 	image := &discordgo.MessageEmbedImage{
 		URL: pokemon.Sprite,
 	}
 
-	err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{
-			Embeds: []*discordgo.MessageEmbed{
-				{
-					Title:  fmt.Sprintf("%s was nominated!", pokemon.Name),
-					Fields: fields,
-					Image:  image,
-				},
+	edit := &discordgo.MessageEdit{
+		Channel: msg.ChannelID,
+		ID:      msg.ID,
+		Embeds: &[]*discordgo.MessageEmbed{
+			{
+				Title: fmt.Sprintf("%s was nominated!", pokemon.Name),
+				Image: image,
 			},
 		},
-	})
+	}
+
+	_, err = s.ChannelMessageEditComplex(edit)
 	if err != nil {
-		log.Printf("error responding to command: %s", err)
+		log.Printf("error editing message: %s\n", err)
 		return
 	}
+
+	auctionStatesMu.Lock()
+	activeState.BiddingPhase = true
+	auctionStatesMu.Unlock()
 }
