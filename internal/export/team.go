@@ -11,33 +11,6 @@ import (
 	"github.com/mehkij/poke-auction/internal/types"
 )
 
-// &{
-// Name:Zekrom
-// Level:75
-// Abilities:[Teravolt]
-// Items:[Leftovers Lum Berry]
-// Moves:[]
-// Roles:map[
-// Bulky Attacker:{
-// Abilities:[Teravolt]
-// Items:[Leftovers]
-// Moves:[Bolt Strike Draco Meteor Outrage Roost Volt Switch]
-// TeraTypes:[]
-// IVs:map[]
-// }
-// Setup Sweeper:{
-// Abilities:[Teravolt]
-// Items:[Lum Berry]
-// Moves:[Bolt Strike Hone Claws Outrage Roost Substitute]
-// TeraTypes:[]
-// IVs:map[]
-// }
-// ]
-// EVs:map[]
-// IVs:map[]
-// Sprite:https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-v/black-white/644.png
-// }
-
 func ExportTeam(s *discordgo.Session, i *discordgo.InteractionCreate, players []*types.Player, gen int) {
 	var d []byte
 
