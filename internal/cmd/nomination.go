@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"slices"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
@@ -155,6 +156,20 @@ func NominateCallback(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		return
 	}
 
+	if slices.Contains(activeState.PreviouslyNominated, pokemonName) {
+		err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: "Cannot nominate a Pokemon that has already been nominated! Please nominate a different Pokemon!",
+				Flags:   discordgo.MessageFlagsEphemeral,
+			},
+		})
+		if err != nil {
+			log.Printf("error responding to command: %s\n", err)
+		}
+		return
+	}
+
 	// Immediately acknowledge interaction
 	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
@@ -206,6 +221,7 @@ func NominateCallback(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	}
 
 	auctionStatesMu.Lock()
+	activeState.PreviouslyNominated = append(activeState.PreviouslyNominated, pokemonName)
 	activeState.BiddingPhase = true
 	auctionStatesMu.Unlock()
 }
