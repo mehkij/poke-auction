@@ -12,10 +12,10 @@ import (
 )
 
 func ExportTeam(s *discordgo.Session, i *discordgo.InteractionCreate, players []*types.Player, gen int) {
-	var d []byte
-
 	var files []*discordgo.File
 	for _, player := range players {
+		var d []byte
+
 		for _, pokemon := range player.Team {
 			switch gen {
 			case 1:
