@@ -120,7 +120,7 @@ func AuctionTimer(s *discordgo.Session, i *discordgo.InteractionCreate, timerStr
 			fmt.Printf("error starting nomination phase on timer end: %s", err)
 			return
 		}
-	}, nil)
+	}, func() {})
 }
 
 // Called when "Join Auction" button is clicked.
@@ -175,6 +175,20 @@ func AuctionCallback(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	gen, err := strconv.Atoi(i.ApplicationCommandData().Options[0].Value.(string))
 	if err != nil {
 		log.Println("error while converting string to int")
+		return
+	}
+
+	if gen < 1 || gen > 9 {
+		err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: "Please choose a valid generation! (1-9)",
+				Flags:   discordgo.MessageFlagsEphemeral,
+			},
+		})
+		if err != nil {
+			log.Printf("error responding to command: %s\n", err)
+		}
 		return
 	}
 
