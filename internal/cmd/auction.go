@@ -114,6 +114,7 @@ func AuctionTimer(s *discordgo.Session, i *discordgo.InteractionCreate, timerStr
 			state.NominationPhase = true
 		}
 		auctionStatesMu.Unlock()
+
 		err := NominationPhase(s, i)
 		if err != nil {
 			fmt.Printf("error starting nomination phase on timer end: %s", err)
