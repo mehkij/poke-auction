@@ -11,6 +11,7 @@ import (
 )
 
 func FetchPokemon(gen int, name string) (*types.Pokemon, error) {
+	// Even though the randbat data isn't used, it helps validate that a Pokemon is useable in a certain generation.
 	url := "https://pkmn.github.io/randbats/data/gen" + fmt.Sprint(gen) + "randombattle.json"
 	res, err := http.Get(url)
 	if err != nil {
