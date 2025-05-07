@@ -106,10 +106,20 @@ func AuctionTimer(s *discordgo.Session, i *discordgo.InteractionCreate, timerStr
 
 		s.ChannelMessageEditComplex(edit)
 	}, func() {
-		NominationPhase(s, i)
-	}, func() {
-		NominationPhase(s, i)
-	})
+		auctionStatesMu.Lock()
+		state, exists := auctionStates[i.Message.ID]
+		if exists {
+			state.CurrentNominator = -1 // Starts at -1 so that when NominationPhase is called, it is incremented to 0
+			state.NominationOrder = RollNominationOrder()
+			state.NominationPhase = true
+		}
+		auctionStatesMu.Unlock()
+		err := NominationPhase(s, i)
+		if err != nil {
+			fmt.Printf("error starting nomination phase on timer end: %s", err)
+			return
+		}
+	}, nil)
 }
 
 // Called when "Join Auction" button is clicked.
