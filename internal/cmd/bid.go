@@ -28,7 +28,7 @@ var BidCommand = &Command{
 	Callback: BidCallback,
 }
 
-func BidTimer(s *discordgo.Session, i *discordgo.InteractionCreate, msg *discordgo.Message, player *types.Player, pokemon *types.Pokemon, stopSignal chan bool) {
+func BidTimer(s *discordgo.Session, i *discordgo.InteractionCreate, msg *discordgo.Message, player *types.Player, pokemon *types.Pokemon, stopSignal chan bool, activeState *types.AuctionState) {
 	// Add detailed parameter checking
 	log.Printf("BidTimer parameters check: session=%v, interaction=%v, msg=%v, player=%v, pokemon=%v, stopSignal=%v",
 		s != nil, i != nil, msg != nil, player != nil, pokemon != nil, stopSignal != nil)
@@ -45,7 +45,7 @@ func BidTimer(s *discordgo.Session, i *discordgo.InteractionCreate, msg *discord
 	}
 
 	fmt.Println("Timer starting...")
-	utils.Timer(1, stopSignal, func(duration int) {
+	utils.Timer(15, stopSignal, func(duration int) {
 		// Defensive check for embed
 		if len(msg.Embeds) == 0 {
 			log.Printf("Timer update: message has no embeds!")
@@ -78,14 +78,47 @@ func BidTimer(s *discordgo.Session, i *discordgo.InteractionCreate, msg *discord
 		var highestBid int
 
 		mu.Lock()
-		for k, v := range bidSoFar {
+		for k, v := range activeState.BidSoFar {
 			if v > highestBid {
 				highestBidderID = k
 				highestBid = v
 			}
 		}
-		// Clear bids for next round
-		bidSoFar = make(map[string]int)
+
+		log.Println("PokeDollars after bid: ")
+		for _, p := range participants {
+			log.Printf("%s: %d", p.Username, p.PokeDollars)
+		}
+
+		log.Println("Returning PokeDollars to losers...")
+		// Return the PokeDollars that were subtracted if you lost the bid
+		for k, v := range activeState.BidSoFar {
+			if v < highestBid {
+				for _, p := range participants {
+					if p.UserID == k {
+						p.PokeDollars += v
+						log.Printf("%s's PokeDollars: %d", p.Username, p.PokeDollars)
+					}
+				}
+			}
+		}
+
+		// Notify users of their remaining balance
+		log.Println("Notifying users of their remaining balance...")
+		var remaining []string
+		for _, p := range participants {
+			remaining = append(remaining, fmt.Sprintf("%s's Balance: %d", p.Username, p.PokeDollars))
+		}
+
+		_, err := s.ChannelMessageSend(activeState.ChannelID, strings.Join(remaining, "\n"))
+		if err != nil {
+			log.Printf("error notifying users of their remaining balance: %s", err)
+			return
+		}
+
+		// Clear bid state for next round
+		activeState.BidSoFar = make(map[string]int)
+		activeState.HighestBid = 0
 		mu.Unlock()
 
 		auctionStatesMu.Lock()
@@ -150,7 +183,7 @@ func BidTimer(s *discordgo.Session, i *discordgo.InteractionCreate, msg *discord
 		}
 		newInteraction.Message = msg
 
-		err := NominationPhase(s, newInteraction)
+		err = NominationPhase(s, newInteraction)
 		if err != nil {
 			log.Printf("error starting nomination phase: %v", err)
 		}
@@ -230,6 +263,11 @@ func BidCallback(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		return
 	}
 
+	if bidAmount <= activeState.HighestBid {
+		utils.CreateFollowupEphemeralError(s, i, "Your bid must be higher than the highest bid!")
+		return
+	}
+
 	msg, err := s.ChannelMessage(i.ChannelID, msgID)
 	if err != nil {
 		log.Printf("could not fetch message: %s\n", err)
@@ -261,7 +299,9 @@ func BidCallback(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			// Ensure user has enough PokeDollars to make a bid
 			if p.PokeDollars >= bidAmount {
 				p.PokeDollars -= bidAmount
-				bidSoFar[i.Member.User.ID] += bidAmount
+				auctionStatesMu.Lock()
+				activeState.BidSoFar[i.Member.User.ID] = bidAmount
+				auctionStatesMu.Unlock()
 				bidder = p
 			} else {
 				utils.CreateFollowupEphemeralError(s, i, "Not enough PokeDollars!")
@@ -281,23 +321,28 @@ func BidCallback(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		return
 	}
 
-	var biddersVal string
-	var bids []string
-	for k, v := range bidSoFar {
+	var biddersField string
+	var highestBid string
+	for k, v := range activeState.BidSoFar {
+		if v > activeState.HighestBid {
+			auctionStatesMu.Lock()
+			activeState.HighestBid = v
+			auctionStatesMu.Unlock()
+		}
 		user, _ := s.User(k)
-		bids = append(bids, fmt.Sprintf("%s: $%d", user.Username, v))
+		highestBid = fmt.Sprintf("%s: $%d", user.Username, activeState.HighestBid)
 	}
 
-	biddersVal = strings.Join(bids, "\n")
-	if biddersVal == "" {
-		biddersVal = "No bids yet..."
+	biddersField = highestBid
+	if biddersField == "" {
+		biddersField = "No bids yet..."
 	}
 
 	var fields []*discordgo.MessageEmbedField
 	var bidderFieldFound bool
 	for _, field := range msg.Embeds[0].Fields {
-		if field.Name == "Bidders" {
-			field.Value = biddersVal
+		if field.Name == "Highest Bid" {
+			field.Value = biddersField
 			bidderFieldFound = true
 		}
 		fields = append(fields, field)
@@ -305,8 +350,8 @@ func BidCallback(s *discordgo.Session, i *discordgo.InteractionCreate) {
 
 	if !bidderFieldFound {
 		fields = append(fields, &discordgo.MessageEmbedField{
-			Name:  "Bidders",
-			Value: biddersVal,
+			Name:  "Highest Bid",
+			Value: biddersField,
 		})
 	}
 
@@ -320,7 +365,7 @@ func BidCallback(s *discordgo.Session, i *discordgo.InteractionCreate) {
 				Image:       msg.Embeds[0].Image,
 				Fields:      fields,
 				Footer: &discordgo.MessageEmbedFooter{
-					Text: "Timer: 1",
+					Text: "Timer: 15",
 				},
 			},
 		},
@@ -395,7 +440,7 @@ func updateBidTimer(s *discordgo.Session, i *discordgo.InteractionCreate, state 
 				debug.PrintStack()
 			}
 		}()
-		BidTimer(s, i, msg, bidder, state.NominatedPokemon, newStopSignal)
+		BidTimer(s, i, msg, bidder, state.NominatedPokemon, newStopSignal, state)
 	}()
 	log.Println("Goroutine started")
 }

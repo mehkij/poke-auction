@@ -38,7 +38,6 @@ var (
 	mu              sync.Mutex
 	auctionStates   = make(map[string]*types.AuctionState)
 	auctionStatesMu sync.Mutex
-	bidSoFar        = make(map[string]int) // Key is the User's ID
 )
 
 func JoinAuction(i *discordgo.InteractionCreate) []*types.Player {
@@ -112,6 +111,7 @@ func AuctionTimer(s *discordgo.Session, i *discordgo.InteractionCreate, timerStr
 			state.CurrentNominator = -1 // Starts at -1 so that when NominationPhase is called, it is incremented to 0
 			state.NominationOrder = RollNominationOrder()
 			state.NominationPhase = true
+			state.BidSoFar = make(map[string]int)
 		}
 		auctionStatesMu.Unlock()
 
@@ -155,6 +155,7 @@ func HandleForceStartAuction(s *discordgo.Session, i *discordgo.InteractionCreat
 		state.CurrentNominator = -1 // Starts at -1 so that when NominationPhase is called, it is incremented to 0
 		state.NominationOrder = RollNominationOrder()
 		state.NominationPhase = true
+		state.BidSoFar = make(map[string]int)
 	}
 	auctionStatesMu.Unlock()
 
