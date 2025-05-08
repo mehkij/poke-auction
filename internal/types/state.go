@@ -8,6 +8,8 @@ type AuctionState struct {
 	NominatedPokemon    *Pokemon
 	PreviouslyNominated []string
 	BiddingPhase        bool
+	BidSoFar            map[string]int
+	HighestBid          int
 	GenNumber           int
 	ChannelID           string
 }
