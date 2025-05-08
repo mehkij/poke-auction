@@ -157,6 +157,20 @@ func NominateCallback(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		return
 	}
 
+	if i.Member.User.ID != activeState.NominationOrder[activeState.CurrentNominator].UserID {
+		err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: "It's not your turn to nominate!",
+				Flags:   discordgo.MessageFlagsEphemeral,
+			},
+		})
+		if err != nil {
+			log.Printf("error responding to command: %s\n", err)
+		}
+		return
+	}
+
 	pokemonName, ok := i.ApplicationCommandData().Options[0].Value.(string)
 	if !ok {
 		log.Println("pokemon name not type of string")
