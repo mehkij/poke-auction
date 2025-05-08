@@ -99,7 +99,7 @@ func NominationPhase(s *discordgo.Session, i *discordgo.InteractionCreate) error
 	log.Println("Setting embed image...")
 	if user, err := s.User(state.NominationOrder[state.CurrentNominator].UserID); err == nil && user != nil {
 		embed.Image = &discordgo.MessageEmbedImage{
-			URL: user.AvatarURL(""),
+			URL: user.AvatarURL("256"),
 		}
 	} else {
 		log.Printf("Warning: Could not fetch nominator avatar: %v", err)
