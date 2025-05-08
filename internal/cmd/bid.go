@@ -45,7 +45,7 @@ func BidTimer(s *discordgo.Session, i *discordgo.InteractionCreate, msg *discord
 	}
 
 	fmt.Println("Timer starting...")
-	utils.Timer(5, stopSignal, func(duration int) {
+	utils.Timer(1, stopSignal, func(duration int) {
 		// Defensive check for embed
 		if len(msg.Embeds) == 0 {
 			log.Printf("Timer update: message has no embeds!")
@@ -211,6 +211,19 @@ func BidCallback(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		return
 	}
 
+	// Validate that user making a bid does not have a full team
+	var found bool
+	for _, player := range activeState.NominationOrder {
+		if player.UserID == i.Member.User.ID {
+			found = true
+			break
+		}
+	}
+	if !found {
+		utils.CreateFollowupEphemeralError(s, i, "You cannot bid anymore, your team is full!")
+		return
+	}
+
 	bidAmount, err := strconv.Atoi(i.ApplicationCommandData().Options[0].StringValue())
 	if err != nil {
 		utils.CreateFollowupEphemeralError(s, i, "Invalid bid amount!")
@@ -307,7 +320,7 @@ func BidCallback(s *discordgo.Session, i *discordgo.InteractionCreate) {
 				Image:       msg.Embeds[0].Image,
 				Fields:      fields,
 				Footer: &discordgo.MessageEmbedFooter{
-					Text: "Timer: 5",
+					Text: "Timer: 1",
 				},
 			},
 		},
