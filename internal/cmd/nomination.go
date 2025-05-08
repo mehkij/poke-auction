@@ -74,18 +74,25 @@ func NominationPhase(s *discordgo.Session, i *discordgo.InteractionCreate) error
 	}
 
 	log.Println("Incrementing CurrentNominator...")
-	// Ensure that incrementing the pointer doesn't exceed length of array, and set the pointer to 0 if it does.
 	state.CurrentNominator++
-	if state.CurrentNominator == len(state.NominationOrder) {
+
+	// Ensure that incrementing the pointer doesn't exceed length of array, and set the pointer to 0 if it does.
+	if state.CurrentNominator >= len(state.NominationOrder) {
 		state.CurrentNominator = 0
 		log.Println("Pointer is equal to NominationOrder length, resetting pointer!")
 	}
+
+	currentNominator := state.NominationOrder[state.CurrentNominator]
+	if currentNominator == nil {
+		return fmt.Errorf("current nomintor is nil")
+	}
+
 	auctionStatesMu.Unlock()
 	log.Println("Mutex Unlocked.")
 
 	log.Println("Creating embed...")
 	embed := &discordgo.MessageEmbed{
-		Title:       fmt.Sprintf("The nomination phase has begun! It is %s's turn to nominate a Pokemon.", state.NominationOrder[state.CurrentNominator].Username),
+		Title:       fmt.Sprintf("The nomination phase has begun! It is %s's turn to nominate a Pokemon.", currentNominator.Username),
 		Description: `Use "/nominate" to pick a Pokemon to nominate.`,
 	}
 
