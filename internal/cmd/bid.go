@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/mehkij/poke-auction/internal/export"
@@ -78,6 +79,28 @@ func BidTimer(s *discordgo.Session, i *discordgo.InteractionCreate, msg *discord
 		var highestBid int
 
 		mu.Lock()
+		auctionStatesMu.Lock()
+
+		if activeState.ProcessingBid {
+			mu.Unlock()
+			auctionStatesMu.Unlock()
+
+			// Wait up to 2 seconds for bid to process
+			for i := 0; i < 20; i++ {
+				time.Sleep(100 * time.Millisecond)
+
+				auctionStatesMu.Lock()
+				if !activeState.ProcessingBid {
+					auctionStatesMu.Unlock()
+					break
+				}
+				auctionStatesMu.Unlock()
+			}
+
+			mu.Lock()
+			auctionStatesMu.Lock()
+		}
+
 		for k, v := range activeState.BidSoFar {
 			if v > highestBid {
 				highestBidderID = k
@@ -90,18 +113,27 @@ func BidTimer(s *discordgo.Session, i *discordgo.InteractionCreate, msg *discord
 			log.Printf("%s: %d", p.Username, p.PokeDollars)
 		}
 
-		log.Println("Returning PokeDollars to losers...")
-		// Return the PokeDollars that were subtracted if you lost the bid
-		for k, v := range activeState.BidSoFar {
-			if v < highestBid {
-				for _, p := range participants {
-					if p.UserID == k {
-						p.PokeDollars += v
-						log.Printf("%s's PokeDollars: %d", p.Username, p.PokeDollars)
+		if len(activeState.NominationOrder) > 0 {
+			for i, p := range activeState.NominationOrder {
+				if p.UserID == highestBidderID {
+					p.PokeDollars -= activeState.HighestBid
+					p.Team = append(p.Team, pokemon)
+					log.Printf("Pokemon %s added to player %s's team", pokemon.Name, p.UserID)
+
+					// Remove the player once their team is full
+					if len(p.Team) == 6 {
+						activeState.NominationOrder = slices.Delete(activeState.NominationOrder, i, i+1)
 					}
+					break
 				}
 			}
 		}
+
+		// Clear bid state for next round
+		activeState.BidSoFar = make(map[string]int)
+		activeState.HighestBid = 0
+		mu.Unlock()
+		auctionStatesMu.Unlock()
 
 		// Notify users of their remaining balance
 		log.Println("Notifying users of their remaining balance...")
@@ -116,41 +148,12 @@ func BidTimer(s *discordgo.Session, i *discordgo.InteractionCreate, msg *discord
 			return
 		}
 
-		// Clear bid state for next round
-		activeState.BidSoFar = make(map[string]int)
-		activeState.HighestBid = 0
-		mu.Unlock()
-
-		auctionStatesMu.Lock()
-		state, exists := auctionStates[msg.ID]
-		if !exists {
-			log.Printf("auction state not found for message ID: %s", msg.ID)
-			auctionStatesMu.Unlock()
-			return
-		}
-		auctionStatesMu.Unlock()
-
 		auctionStatesMu.Lock()
 
-		if len(state.NominationOrder) > 0 {
-			for i, p := range state.NominationOrder {
-				if p.UserID == highestBidderID {
-					p.Team = append(p.Team, pokemon)
-					log.Printf("Pokemon %s added to player %s's team", pokemon.Name, p.UserID)
-
-					// Remove the player once their team is full
-					if len(p.Team) == 6 {
-						state.NominationOrder = slices.Delete(state.NominationOrder, i, i+1)
-					}
-					break
-				}
-			}
-		}
-
-		state.NominatedPokemon = nil
+		activeState.NominatedPokemon = nil
 		log.Println("Set nominated Pokemon to nil!")
 
-		if len(state.NominationOrder) == 0 {
+		if len(activeState.NominationOrder) == 0 {
 			delete(auctionStates, msg.ID)
 			log.Printf("Deleted auction state for message ID: %s", msg.ID)
 			auctionStatesMu.Unlock()
@@ -169,7 +172,7 @@ func BidTimer(s *discordgo.Session, i *discordgo.InteractionCreate, msg *discord
 				log.Printf("error updating final message: %v", err)
 			}
 
-			export.ExportTeam(s, i, participants, state.GenNumber)
+			export.ExportTeam(s, i, participants, activeState.GenNumber)
 			return
 		}
 
@@ -298,7 +301,6 @@ func BidCallback(s *discordgo.Session, i *discordgo.InteractionCreate) {
 
 			// Ensure user has enough PokeDollars to make a bid
 			if p.PokeDollars >= bidAmount {
-				p.PokeDollars -= bidAmount
 				auctionStatesMu.Lock()
 				activeState.BidSoFar[i.Member.User.ID] = bidAmount
 				auctionStatesMu.Unlock()
@@ -320,6 +322,16 @@ func BidCallback(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		utils.CreateFollowupEphemeralError(s, i, "No Pokemon has been nominated for bidding!")
 		return
 	}
+
+	auctionStatesMu.Lock()
+	activeState.ProcessingBid = true
+	auctionStatesMu.Unlock()
+
+	defer func() {
+		auctionStatesMu.Lock()
+		activeState.ProcessingBid = false
+		auctionStatesMu.Unlock()
+	}()
 
 	var biddersField string
 	var highestBid string
