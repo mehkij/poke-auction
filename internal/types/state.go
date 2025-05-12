@@ -9,6 +9,7 @@ type AuctionState struct {
 	PreviouslyNominated []string
 	BiddingPhase        bool
 	BidSoFar            map[string]int
+	ProcessingBid       bool
 	HighestBid          int
 	GenNumber           int
 	ChannelID           string
