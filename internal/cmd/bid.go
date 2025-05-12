@@ -142,10 +142,20 @@ func BidTimer(s *discordgo.Session, i *discordgo.InteractionCreate, msg *discord
 			remaining = append(remaining, fmt.Sprintf("%s's Balance: %d", p.Username, p.PokeDollars))
 		}
 
-		_, err := s.ChannelMessageSend(activeState.ChannelID, strings.Join(remaining, "\n"))
-		if err != nil {
-			log.Printf("error notifying users of their remaining balance: %s", err)
-			return
+		if activeState.BalanceMessageID == "" {
+			msg, err := s.ChannelMessageSend(activeState.ChannelID, strings.Join(remaining, "\n"))
+			if err != nil {
+				log.Printf("error notifying users of their remaining balance: %s", err)
+				return
+			}
+
+			activeState.BalanceMessageID = msg.ID
+		} else {
+			_, err := s.ChannelMessageEdit(activeState.ChannelID, activeState.BalanceMessageID, strings.Join(remaining, "\n"))
+			if err != nil {
+				log.Printf("error notifying users of their remaining balance: %s", err)
+				return
+			}
 		}
 
 		auctionStatesMu.Lock()
@@ -186,7 +196,7 @@ func BidTimer(s *discordgo.Session, i *discordgo.InteractionCreate, msg *discord
 		}
 		newInteraction.Message = msg
 
-		err = NominationPhase(s, newInteraction)
+		err := NominationPhase(s, newInteraction)
 		if err != nil {
 			log.Printf("error starting nomination phase: %v", err)
 		}
