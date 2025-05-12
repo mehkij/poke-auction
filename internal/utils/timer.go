@@ -22,7 +22,6 @@ func Timer(duration int, stop <-chan bool, callback func(duration int), end func
 	for {
 		select {
 		case <-stop:
-			// ticker.Stop()
 			interrupt()
 			return
 		case <-ticker.C:
