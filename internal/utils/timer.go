@@ -16,23 +16,8 @@ And a final callback function that is called whenever the stop signal recieves a
 func Timer(duration int, stop <-chan bool, callback func(duration int), end func(), interrupt func()) {
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
-	// sleep := time.Duration(duration + 1) // Counts 0 as the last number
 
 	timeLeft := duration
-
-	// go func() {
-	// 	for {
-	// 		select {
-	// 		case <-stop:
-	// 			// ticker.Stop()
-	// 			interrupt()
-	// 			return
-	// 		case <-ticker.C:
-	// 			timeLeft--
-	// 			callback(timeLeft)
-	// 		}
-	// 	}
-	// }()
 
 	for {
 		select {
@@ -50,16 +35,4 @@ func Timer(duration int, stop <-chan bool, callback func(duration int), end func
 			}
 		}
 	}
-
-	// time.Sleep(sleep * time.Second)
-	// ticker.Stop()
-	// end()
 }
-
-// func example() {
-// 	Timer(3, func(duration int) {
-// 		fmt.Printf("Time: %d\n", duration)
-// 	}, func() {
-// 		fmt.Println("Ticker stopped.")
-// 	})
-// }
