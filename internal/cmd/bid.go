@@ -239,7 +239,7 @@ func BidCallback(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	var activeState *types.AuctionState
 	var msgID string
 	for id, state := range auctionStates {
-		if state.NominationPhase && state.ChannelID == i.ChannelID {
+		if state.BiddingPhase && state.ChannelID == i.ChannelID {
 			activeState = state
 			msgID = id
 			break

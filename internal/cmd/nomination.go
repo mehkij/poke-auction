@@ -243,6 +243,7 @@ func NominateCallback(s *discordgo.Session, i *discordgo.InteractionCreate) {
 
 	auctionStatesMu.Lock()
 	activeState.PreviouslyNominated = append(activeState.PreviouslyNominated, pokemonName)
+	activeState.NominationPhase = false
 	activeState.BiddingPhase = true
 	auctionStatesMu.Unlock()
 }
