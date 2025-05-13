@@ -224,6 +224,8 @@ func NominateCallback(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		URL: pokemon.Sprite,
 	}
 
+	activeState.BidSoFar[i.Member.User.ID] = 50
+	activeState.HighestBid = 50
 	edit := &discordgo.MessageEdit{
 		Channel: msg.ChannelID,
 		ID:      msg.ID,
@@ -231,11 +233,17 @@ func NominateCallback(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			{
 				Title: fmt.Sprintf("%s was nominated!", pokemon.Name),
 				Image: image,
+				Fields: []*discordgo.MessageEmbedField{
+					{
+						Name:  "Highest Bid",
+						Value: fmt.Sprintf("%s: $%d", i.Member.User.Username, 50),
+					},
+				},
 			},
 		},
 	}
 
-	_, err = s.ChannelMessageEditComplex(edit)
+	updatedMsg, err := s.ChannelMessageEditComplex(edit)
 	if err != nil {
 		log.Printf("error editing message: %s\n", err)
 		return
@@ -246,4 +254,13 @@ func NominateCallback(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	activeState.NominationPhase = false
 	activeState.BiddingPhase = true
 	auctionStatesMu.Unlock()
+
+	var player *types.Player
+	for _, p := range participants {
+		if p.UserID == i.Member.User.ID {
+			player = p
+		}
+	}
+
+	updateBidTimer(s, i, activeState, updatedMsg, player)
 }
