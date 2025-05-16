@@ -11,6 +11,7 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/mehkij/poke-auction/internal/export"
+	"github.com/mehkij/poke-auction/internal/fetch"
 	"github.com/mehkij/poke-auction/internal/types"
 	"github.com/mehkij/poke-auction/internal/utils"
 )
@@ -119,6 +120,11 @@ func BidTimer(s *discordgo.Session, i *discordgo.InteractionCreate, msg *discord
 					p.PokeDollars -= activeState.HighestBid
 					p.Team = append(p.Team, pokemon)
 					log.Printf("Pokemon %s added to player %s's team", pokemon.Name, p.UserID)
+
+					if p.PokeDollars == 0 {
+						team := fetch.RollRandomBabyPokemon(p.Team, activeState.GenNumber)
+						p.Team = team
+					}
 
 					// Remove the player once their team is full
 					if len(p.Team) == 6 {
