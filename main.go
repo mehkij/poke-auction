@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -23,6 +24,18 @@ func main() {
 	botToken := os.Getenv("BOT_TOKEN")
 	appID := os.Getenv("APP_ID")
 
+	if botToken == "" || appID == "" {
+		log.Fatal("Required environment variables not set!")
+	}
+
+	// Setup a simple HTTP server to keep the Repl alive
+	go func() {
+		http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			fmt.Fprintf(w, "Bot is running!")
+		})
+		http.ListenAndServe(":8080", nil)
+	}()
+
 	log.Println("Creating new session...")
 	session, err := discordgo.New("Bot " + botToken)
 	if err != nil {
@@ -30,7 +43,6 @@ func main() {
 	}
 
 	session.AddHandler(cmd.HandleInteraction)
-
 	session.Identify.Intents = discordgo.IntentsAllWithoutPrivileged
 
 	log.Println("Opening new session...")
