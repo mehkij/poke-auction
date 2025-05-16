@@ -19,17 +19,20 @@ func Timer(duration int, stop <-chan bool, callback func(duration int), end func
 
 	timeLeft := duration
 
-	for {
+	for timeLeft > 0 {
 		select {
 		case <-stop:
 			interrupt()
 			return
-		case <-ticker.C:
+		case <-time.After(1 * time.Second):
 			timeLeft--
-			callback(timeLeft)
+
+			go func(t int) {
+				callback(t)
+			}(timeLeft)
 
 			if timeLeft <= 0 {
-				end()
+				go end()
 				return
 			}
 		}

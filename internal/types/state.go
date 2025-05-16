@@ -1,6 +1,11 @@
 package types
 
+import "sync"
+
 type AuctionState struct {
+	Participants   []*Player
+	AuctionStateMu sync.Mutex
+
 	StopSignal       chan bool
 	GenNumber        int
 	ChannelID        string

@@ -79,27 +79,24 @@ func BidTimer(s *discordgo.Session, i *discordgo.InteractionCreate, msg *discord
 		var highestBidderID string
 		var highestBid int
 
-		mu.Lock()
-		auctionStatesMu.Lock()
+		activeState.AuctionStateMu.Lock()
 
 		if activeState.ProcessingBid {
-			mu.Unlock()
-			auctionStatesMu.Unlock()
+			activeState.AuctionStateMu.Unlock()
 
 			// Wait up to 2 seconds for bid to process
 			for i := 0; i < 20; i++ {
 				time.Sleep(100 * time.Millisecond)
 
-				auctionStatesMu.Lock()
+				activeState.AuctionStateMu.Lock()
 				if !activeState.ProcessingBid {
-					auctionStatesMu.Unlock()
+					activeState.AuctionStateMu.Unlock()
 					break
 				}
-				auctionStatesMu.Unlock()
+				activeState.AuctionStateMu.Unlock()
 			}
 
-			mu.Lock()
-			auctionStatesMu.Lock()
+			activeState.AuctionStateMu.Lock()
 		}
 
 		for k, v := range activeState.BidSoFar {
@@ -110,7 +107,7 @@ func BidTimer(s *discordgo.Session, i *discordgo.InteractionCreate, msg *discord
 		}
 
 		log.Println("PokeDollars after bid: ")
-		for _, p := range participants {
+		for _, p := range activeState.Participants {
 			log.Printf("%s: %d", p.Username, p.PokeDollars)
 		}
 
@@ -138,15 +135,15 @@ func BidTimer(s *discordgo.Session, i *discordgo.InteractionCreate, msg *discord
 		// Clear bid state for next round
 		activeState.BidSoFar = make(map[string]int)
 		activeState.HighestBid = 0
-		mu.Unlock()
-		auctionStatesMu.Unlock()
 
 		// Notify users of their remaining balance
 		log.Println("Notifying users of their remaining balance...")
 		var remaining []string
-		for _, p := range participants {
+		for _, p := range activeState.Participants {
 			remaining = append(remaining, fmt.Sprintf("%s's Balance: %d", p.Username, p.PokeDollars))
 		}
+
+		activeState.AuctionStateMu.Unlock()
 
 		if activeState.BalanceMessageID == "" {
 			msg, err := s.ChannelMessageSend(activeState.ChannelID, strings.Join(remaining, "\n"))
@@ -164,7 +161,7 @@ func BidTimer(s *discordgo.Session, i *discordgo.InteractionCreate, msg *discord
 			}
 		}
 
-		auctionStatesMu.Lock()
+		activeState.AuctionStateMu.Lock()
 
 		activeState.NominatedPokemon = nil
 		log.Println("Set nominated Pokemon to nil!")
@@ -172,7 +169,7 @@ func BidTimer(s *discordgo.Session, i *discordgo.InteractionCreate, msg *discord
 		if len(activeState.NominationOrder) == 0 {
 			delete(auctionStates, msg.ID)
 			log.Printf("Deleted auction state for message ID: %s", msg.ID)
-			auctionStatesMu.Unlock()
+			activeState.AuctionStateMu.Unlock()
 
 			_, err := s.ChannelMessageEditComplex(&discordgo.MessageEdit{
 				Channel: msg.ChannelID,
@@ -188,12 +185,12 @@ func BidTimer(s *discordgo.Session, i *discordgo.InteractionCreate, msg *discord
 				log.Printf("error updating final message: %v", err)
 			}
 
-			export.ExportTeam(s, i, participants, activeState.GenNumber)
+			export.ExportTeam(s, i, activeState.Participants, activeState.GenNumber)
 			return
 		}
 
 		log.Println("Unlocking Mutex...")
-		auctionStatesMu.Unlock()
+		activeState.AuctionStateMu.Unlock()
 		log.Println("Mutex unlocked!")
 
 		log.Println("Starting Nomination Phase...")
@@ -202,7 +199,7 @@ func BidTimer(s *discordgo.Session, i *discordgo.InteractionCreate, msg *discord
 		}
 		newInteraction.Message = msg
 
-		err := NominationPhase(s, newInteraction)
+		err := NominationPhase(s, newInteraction, activeState)
 		if err != nil {
 			log.Printf("error starting nomination phase: %v", err)
 		}
@@ -241,7 +238,7 @@ func BidCallback(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		return
 	}
 
-	auctionStatesMu.Lock()
+	mu.Lock()
 	var activeState *types.AuctionState
 	var msgID string
 	for id, state := range auctionStates {
@@ -251,7 +248,7 @@ func BidCallback(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			break
 		}
 	}
-	auctionStatesMu.Unlock()
+	mu.Unlock()
 
 	if activeState == nil {
 		utils.CreateFollowupEphemeralError(s, i, "No active auction in bidding phase!")
@@ -307,7 +304,8 @@ func BidCallback(s *discordgo.Session, i *discordgo.InteractionCreate) {
 
 	var bidder *types.Player
 
-	for _, p := range participants {
+	activeState.AuctionStateMu.Lock()
+	for _, p := range activeState.Participants {
 		if i.Member.User.ID == p.UserID {
 			// Ensure bid is not 0
 			if bidAmount == 0 {
@@ -317,9 +315,9 @@ func BidCallback(s *discordgo.Session, i *discordgo.InteractionCreate) {
 
 			// Ensure user has enough PokeDollars to make a bid
 			if p.PokeDollars >= bidAmount {
-				auctionStatesMu.Lock()
+				activeState.AuctionStateMu.Lock()
 				activeState.BidSoFar[i.Member.User.ID] = bidAmount
-				auctionStatesMu.Unlock()
+				activeState.AuctionStateMu.Unlock()
 				bidder = p
 			} else {
 				utils.CreateFollowupEphemeralError(s, i, "Not enough PokeDollars!")
@@ -328,6 +326,7 @@ func BidCallback(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			break
 		}
 	}
+	activeState.AuctionStateMu.Unlock()
 
 	if bidder == nil {
 		utils.CreateFollowupEphemeralError(s, i, "You are not a participant in this auction!")
@@ -339,23 +338,23 @@ func BidCallback(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		return
 	}
 
-	auctionStatesMu.Lock()
+	activeState.AuctionStateMu.Lock()
 	activeState.ProcessingBid = true
-	auctionStatesMu.Unlock()
+	activeState.AuctionStateMu.Unlock()
 
 	defer func() {
-		auctionStatesMu.Lock()
+		activeState.AuctionStateMu.Lock()
 		activeState.ProcessingBid = false
-		auctionStatesMu.Unlock()
+		activeState.AuctionStateMu.Unlock()
 	}()
 
 	var biddersField string
 	var highestBid string
 	for k, v := range activeState.BidSoFar {
 		if v > activeState.HighestBid {
-			auctionStatesMu.Lock()
+			activeState.AuctionStateMu.Lock()
 			activeState.HighestBid = v
-			auctionStatesMu.Unlock()
+			activeState.AuctionStateMu.Unlock()
 		}
 		user, _ := s.User(k)
 		highestBid = fmt.Sprintf("%s: $%d", user.Username, activeState.HighestBid)
@@ -405,7 +404,7 @@ func BidCallback(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		return
 	}
 
-	auctionStatesMu.Lock()
+	activeState.AuctionStateMu.Lock()
 	// If a timer is currently running, stop it.
 	if activeState.StopSignal != nil {
 		safeCloseChannel(activeState.StopSignal)
@@ -413,7 +412,7 @@ func BidCallback(s *discordgo.Session, i *discordgo.InteractionCreate) {
 
 	stopSignal := make(chan bool)
 	activeState.StopSignal = stopSignal
-	auctionStatesMu.Unlock()
+	activeState.AuctionStateMu.Unlock()
 
 	log.Println("About to call updateBidTimer...")
 	updateBidTimer(s, i, activeState, updatedMsg, bidder)
@@ -430,11 +429,11 @@ func updateBidTimer(s *discordgo.Session, i *discordgo.InteractionCreate, state 
 		return
 	}
 
-	auctionStatesMu.Lock()
+	state.AuctionStateMu.Lock()
 
 	if state.NominatedPokemon == nil {
 		log.Println("error updating bid timer: NominatedPokemon is nil")
-		auctionStatesMu.Unlock()
+		state.AuctionStateMu.Unlock()
 		return
 	}
 
@@ -455,7 +454,7 @@ func updateBidTimer(s *discordgo.Session, i *discordgo.InteractionCreate, state 
 	}
 
 	log.Println("Unlocking mutex")
-	auctionStatesMu.Unlock()
+	state.AuctionStateMu.Unlock()
 	log.Println("Mutex unlocked")
 
 	log.Println("About to start goroutine for BidTimer")

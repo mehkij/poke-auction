@@ -28,9 +28,9 @@ var NominateCommand = &Command{
 }
 
 // Returns the order in which players will nominate a Pokemon to be auctioned.
-func RollNominationOrder() []*types.Player {
-	remaining := make([]*types.Player, len(participants))
-	copy(remaining, participants)
+func RollNominationOrder(activeState *types.AuctionState) []*types.Player {
+	remaining := make([]*types.Player, len(activeState.Participants))
+	copy(remaining, activeState.Participants)
 
 	var order []*types.Player
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
@@ -48,8 +48,8 @@ func RollNominationOrder() []*types.Player {
 	return order
 }
 
-func NominationPhase(s *discordgo.Session, i *discordgo.InteractionCreate) error {
-	if len(participants) == 0 {
+func NominationPhase(s *discordgo.Session, i *discordgo.InteractionCreate, activeState *types.AuctionState) error {
+	if len(activeState.Participants) == 0 {
 		edit := &discordgo.MessageEdit{
 			Channel: i.ChannelID,
 			ID:      i.Message.ID,
@@ -67,7 +67,7 @@ func NominationPhase(s *discordgo.Session, i *discordgo.InteractionCreate) error
 	}
 
 	log.Println("Locking Mutex...")
-	auctionStatesMu.Lock()
+	activeState.AuctionStateMu.Lock()
 	state, exists := auctionStates[i.Message.ID]
 	if !exists || len(state.NominationOrder) == 0 {
 		return fmt.Errorf("no nomination order found")
@@ -87,7 +87,7 @@ func NominationPhase(s *discordgo.Session, i *discordgo.InteractionCreate) error
 		return fmt.Errorf("current nomintor is nil")
 	}
 
-	auctionStatesMu.Unlock()
+	activeState.AuctionStateMu.Unlock()
 	log.Println("Mutex Unlocked.")
 
 	log.Println("Creating embed...")
@@ -112,10 +112,10 @@ func NominationPhase(s *discordgo.Session, i *discordgo.InteractionCreate) error
 		Components: &[]discordgo.MessageComponent{},
 	}
 
-	auctionStatesMu.Lock()
+	activeState.AuctionStateMu.Lock()
 	log.Println("Setting Nomination Phase to true...")
 	state.NominationPhase = true
-	auctionStatesMu.Unlock()
+	activeState.AuctionStateMu.Unlock()
 
 	_, err := s.ChannelMessageEditComplex(edit)
 
@@ -124,7 +124,7 @@ func NominationPhase(s *discordgo.Session, i *discordgo.InteractionCreate) error
 }
 
 func NominateCallback(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	auctionStatesMu.Lock()
+	mu.Lock()
 
 	log.Printf("NominateCallback called in channel: %s\n", i.ChannelID)
 	for msgID, state := range auctionStates {
@@ -141,7 +141,7 @@ func NominateCallback(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		}
 	}
 
-	auctionStatesMu.Unlock()
+	mu.Unlock()
 
 	if activeState == nil || !activeState.NominationPhase {
 		err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
@@ -210,9 +210,9 @@ func NominateCallback(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		return
 	}
 
-	auctionStatesMu.Lock()
+	activeState.AuctionStateMu.Lock()
 	activeState.NominatedPokemon = pokemon
-	auctionStatesMu.Unlock()
+	activeState.AuctionStateMu.Unlock()
 
 	msg, err := s.ChannelMessage(i.ChannelID, messageID)
 	if err != nil {
@@ -249,18 +249,18 @@ func NominateCallback(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		return
 	}
 
-	auctionStatesMu.Lock()
+	activeState.AuctionStateMu.Lock()
 	activeState.PreviouslyNominated = append(activeState.PreviouslyNominated, pokemonName)
 	activeState.NominationPhase = false
 	activeState.BiddingPhase = true
-	auctionStatesMu.Unlock()
 
 	var player *types.Player
-	for _, p := range participants {
+	for _, p := range activeState.Participants {
 		if p.UserID == i.Member.User.ID {
 			player = p
 		}
 	}
+	activeState.AuctionStateMu.Unlock()
 
 	updateBidTimer(s, i, activeState, updatedMsg, player)
 }

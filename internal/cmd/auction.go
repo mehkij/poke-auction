@@ -34,10 +34,8 @@ var AuctionCommand = &Command{
 }
 
 var (
-	participants    []*types.Player
-	mu              sync.Mutex
-	auctionStates   = make(map[string]*types.AuctionState)
-	auctionStatesMu sync.Mutex
+	mu            sync.Mutex
+	auctionStates = make(map[string]*types.AuctionState)
 )
 
 func JoinAuction(i *discordgo.InteractionCreate) []*types.Player {
@@ -45,21 +43,31 @@ func JoinAuction(i *discordgo.InteractionCreate) []*types.Player {
 	username := user.Username
 	id := user.ID
 
+	mu.Lock()
+	state, exists := auctionStates[i.Message.ID]
+	mu.Unlock()
+	if !exists {
+		log.Printf("auction state not found!")
+		return nil
+	}
+
+	state.AuctionStateMu.Lock()
+	defer state.AuctionStateMu.Unlock()
 	// Check if user is already in participants
-	for _, p := range participants {
+	for _, p := range state.Participants {
 		if p.UserID == id {
-			return participants
+			return state.Participants
 		}
 	}
 
 	// Add new participant
-	participants = append(participants, &types.Player{
+	state.Participants = append(state.Participants, &types.Player{
 		Username:    username,
 		UserID:      id,
 		PokeDollars: 10000,
 	})
 
-	return participants
+	return state.Participants
 }
 
 func AuctionTimer(s *discordgo.Session, i *discordgo.InteractionCreate, timerStr string, stopSignal chan bool) {
@@ -70,12 +78,19 @@ func AuctionTimer(s *discordgo.Session, i *discordgo.InteractionCreate, timerStr
 	}
 
 	utils.Timer(timeLeft, stopSignal, func(d int) {
-		mu.Lock()
 		var usernames []string
-		for _, p := range participants {
-			usernames = append(usernames, p.Username)
-		}
+
+		mu.Lock()
+		state, exists := auctionStates[i.Message.ID]
 		mu.Unlock()
+
+		if exists {
+			state.AuctionStateMu.Lock()
+			for _, p := range state.Participants {
+				usernames = append(usernames, p.Username)
+			}
+			state.AuctionStateMu.Unlock()
+		}
 
 		participantsValue := "No participants yet..."
 		if len(usernames) > 0 {
@@ -105,17 +120,20 @@ func AuctionTimer(s *discordgo.Session, i *discordgo.InteractionCreate, timerStr
 
 		s.ChannelMessageEditComplex(edit)
 	}, func() {
-		auctionStatesMu.Lock()
+		mu.Lock()
 		state, exists := auctionStates[i.Message.ID]
+		mu.Unlock()
+
 		if exists {
+			state.AuctionStateMu.Lock()
 			state.CurrentNominator = -1 // Starts at -1 so that when NominationPhase is called, it is incremented to 0
-			state.NominationOrder = RollNominationOrder()
+			state.NominationOrder = RollNominationOrder(state)
 			state.NominationPhase = true
 			state.BidSoFar = make(map[string]int)
+			state.AuctionStateMu.Unlock()
 		}
-		auctionStatesMu.Unlock()
 
-		err := NominationPhase(s, i)
+		err := NominationPhase(s, i, state)
 		if err != nil {
 			fmt.Printf("error starting nomination phase on timer end: %s", err)
 			return
@@ -133,9 +151,7 @@ func HandleAuctionInteraction(s *discordgo.Session, i *discordgo.InteractionCrea
 		return
 	}
 
-	mu.Lock()
 	JoinAuction(i)
-	mu.Unlock()
 }
 
 // Called when "Force Start" button is clicked.
@@ -148,18 +164,20 @@ func HandleForceStartAuction(s *discordgo.Session, i *discordgo.InteractionCreat
 		return
 	}
 
-	auctionStatesMu.Lock()
+	mu.Lock()
 	state, exists := auctionStates[i.Message.ID]
+	mu.Unlock()
 	if exists {
+		state.AuctionStateMu.Lock()
 		state.StopSignal <- true
 		state.CurrentNominator = -1 // Starts at -1 so that when NominationPhase is called, it is incremented to 0
-		state.NominationOrder = RollNominationOrder()
+		state.NominationOrder = RollNominationOrder(state)
 		state.NominationPhase = true
 		state.BidSoFar = make(map[string]int)
+		state.AuctionStateMu.Unlock()
 	}
-	auctionStatesMu.Unlock()
 
-	err = NominationPhase(s, i)
+	err = NominationPhase(s, i, state)
 	if err != nil {
 		log.Printf("error starting nomination phase: %s\n", err)
 		s.ChannelMessageSend(i.ChannelID, fmt.Sprintf("Error starting nomination phase: %s", err))
@@ -168,7 +186,7 @@ func HandleForceStartAuction(s *discordgo.Session, i *discordgo.InteractionCreat
 
 func AuctionCallback(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	// Reset participants list at start of new auction
-	participants = make([]*types.Player, 0)
+	participants := make([]*types.Player, 0)
 
 	// Get timer value directly from command options
 	timerStr := i.ApplicationCommandData().Options[1].StringValue()
@@ -248,14 +266,14 @@ func AuctionCallback(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	newInteraction.Message = msg
 
 	stopSignal := make(chan bool)
-	auctionStatesMu.Lock()
+	mu.Lock()
 	if oldState, exists := auctionStates[msg.ID]; exists {
 		close(oldState.StopSignal)
 		delete(auctionStates, msg.ID)
 	}
-	auctionStates[msg.ID] = &types.AuctionState{StopSignal: stopSignal, GenNumber: gen, ChannelID: msg.ChannelID}
+	auctionStates[msg.ID] = &types.AuctionState{Participants: participants, StopSignal: stopSignal, GenNumber: gen, ChannelID: msg.ChannelID}
 	log.Printf("Auction state set: msgID=%s, ChannelID=%s", msg.ID, msg.ChannelID)
-	auctionStatesMu.Unlock()
+	mu.Unlock()
 
 	// Start the timer with the original timer value with a cleanup channel
 	go AuctionTimer(s, newInteraction, timerStr, stopSignal)
@@ -278,11 +296,13 @@ func safeCloseChannel(ch chan bool) {
 
 // Signal cleanup helper function
 func CleanupAuctionTimer(messageID string) {
-	auctionStatesMu.Lock()
-	defer auctionStatesMu.Unlock()
+	mu.Lock()
+	defer mu.Unlock()
 
 	if state, exists := auctionStates[messageID]; exists && state.StopSignal != nil {
+		state.AuctionStateMu.Lock()
 		safeCloseChannel(state.StopSignal)
 		state.StopSignal = nil
+		state.AuctionStateMu.Unlock()
 	}
 }
