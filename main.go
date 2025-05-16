@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/joho/godotenv"
@@ -28,14 +29,6 @@ func main() {
 		log.Fatal("Required environment variables not set!")
 	}
 
-	// Setup a simple HTTP server to keep the Repl alive
-	go func() {
-		http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-			fmt.Fprintf(w, "Bot is running!")
-		})
-		http.ListenAndServe(":8080", nil)
-	}()
-
 	log.Println("Creating new session...")
 	session, err := discordgo.New("Bot " + botToken)
 	if err != nil {
@@ -52,6 +45,40 @@ func main() {
 	}
 	defer session.Close()
 	log.Println("Session successfully opened!")
+
+	// Setup a simple HTTP server to serve the status of the bot
+	go func() {
+		http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			fmt.Fprintf(w, "Bot is running!")
+		})
+
+		http.HandleFunc("/api/status", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+
+			guilds := len(session.State.Guilds)
+
+			res := fmt.Sprintf(`{
+				"status": "online",
+				"uptime": "%s",
+				"guilds": %d,
+				"ping": %d,
+				"version": "1.0.0"
+			}`, getUptime(), guilds, session.HeartbeatLatency().Milliseconds())
+
+			w.Write([]byte(res))
+		})
+
+		// Health check endpoint for monitoring tools
+		http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte("OK"))
+		})
+
+		log.Println("Starting HTTP server on port 8080")
+		if err := http.ListenAndServe(":8080", nil); err != nil {
+			log.Printf("HTTP server error: %v", err)
+		}
+	}()
 
 	log.Println("Registering commands...")
 	cmds := cmd.RegisterAll(session, appID, "")
@@ -70,4 +97,17 @@ func main() {
 			fmt.Println("Cannot delete slash command:", err)
 		}
 	}
+}
+
+var startTime = time.Now()
+
+func getUptime() string {
+	uptime := time.Since(startTime)
+
+	days := int(uptime.Hours() / 24)
+	hours := int(uptime.Hours()) % 24
+	minutes := int(uptime.Minutes()) % 60
+	seconds := int(uptime.Seconds()) % 60
+
+	return fmt.Sprintf("%dd %dh %dm %ds", days, hours, minutes, seconds)
 }
