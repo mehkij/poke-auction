@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 async function fetchBotHealth() {
-  const res = await fetch("http://18.225.92.36:8080/api/status");
+  const res = await fetch("https://pokeauction.duckdns.org/api/status");
   if (!res.ok) {
     throw new Error("Network response was not ok");
   }
