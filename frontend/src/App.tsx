@@ -12,10 +12,15 @@ function App() {
       <div className="flex m-4 gap-4">
         <Button
           className="flex gap-2 items-center justify-center bg-red-500 hover:bg-red-600 text-white border-2 border-red-600"
-          // onClick={() => window.open("", "_blank")}
+          onClick={() =>
+            window.open(
+              "https://discord.com/oauth2/authorize?client_id=1363982474270736414&permissions=277025516544&integration_type=0&scope=applications.commands+bot",
+              "_blank"
+            )
+          }
         >
           <img className="size-4" src={DiscordLogo}></img>
-          <p>Coming soon...</p>
+          <p>Invite</p>
         </Button>
 
         <Button
