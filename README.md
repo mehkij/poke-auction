@@ -13,7 +13,7 @@ Currently, the bot only has three commands:
 Each player begins with 10,000 PokéDollars. If a player happens to run out a money, their team will be filled with [baby pokemon](https://m.bulbapedia.bulbagarden.net/wiki/Baby_Pok%C3%A9mon). After every player has a full team, the bot will generate PokePastes of each player's team that can be pasted into Pokemon Showdown's team builder.
 
 > [!NOTE]
-> The PokePaste that is used to import teams into Showdown intentionally do not have any information outside of the Pokemon names. The user is expected to fill in the rest of the information needed (abilities, moves, IVs, etc.)
+> The PokePaste that is used to import teams into Showdown intentionally does not have any information outside of the Pokemon names. The user is expected to fill in the rest of the information needed (abilities, moves, IVs, etc.)
 
 ## Known Issues
 
