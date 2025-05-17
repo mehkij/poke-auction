@@ -8,7 +8,7 @@ function App() {
   return (
     <div className="h-screen w-screen flex flex-col justify-center items-center">
       <img className="size-64 m-4" src={PokeBall}></img>
-      <Status online={false} />
+      <Status />
       <div className="flex m-4 gap-4">
         <Button
           className="flex gap-2 items-center justify-center bg-red-500 hover:bg-red-600 text-white border-2 border-red-600"

@@ -1,8 +1,26 @@
-type StatusProps = {
-  online: boolean;
-};
+import { useQuery } from "@tanstack/react-query";
 
-function Status({ online }: StatusProps) {
+async function fetchBotHealth() {
+  const res = await fetch("http://18.225.92.36:8080/api/status");
+  if (!res.ok) {
+    throw new Error("Network response was not ok");
+  }
+  return res.json();
+}
+
+function Status() {
+  const { status, data, error } = useQuery({
+    queryKey: ["bot-status"],
+    queryFn: fetchBotHealth,
+    refetchInterval: 300000,
+  });
+
+  if (status === "error") {
+    return <span>Error fetching bot status: {error.message}</span>;
+  }
+
+  const online = data?.status === "online";
+
   return (
     <div className="flex items-center m-4 gap-2">
       <div
