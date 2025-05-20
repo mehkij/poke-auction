@@ -65,19 +65,24 @@ func FetchPokemonImage(gen int, name string) (string, error) {
 		return "", err
 	}
 
-	genNum := fmt.Sprintf("generation-%s", utils.ToRoman(gen))
-
 	sprites := data["sprites"].(map[string]any)
-	versions := sprites["versions"].(map[string]any)
-	generation := versions[genNum].(map[string]any)
+	var front_default string
 
-	var spriteMap map[string]any
-	for _, v := range generation {
-		spriteMap = v.(map[string]any)
-		break
+	if gen == 9 {
+		front_default = sprites["front_default"].(string)				
+	} else {
+		genNum := fmt.Sprintf("generation-%s", utils.ToRoman(gen))
+		versions := sprites["versions"].(map[string]any)
+		generation := versions[genNum].(map[string]any)
+		
+		var spriteMap map[string]any
+		for _, v := range generation {
+			spriteMap = v.(map[string]any)
+			break
+		}
+		
+		front_default = spriteMap["front_default"].(string)
 	}
-
-	front_default := spriteMap["front_default"].(string)
 
 	return front_default, nil
 }
