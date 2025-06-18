@@ -59,10 +59,6 @@ func main() {
 
 	// Setup a simple HTTP server to serve the status of the bot
 	go func() {
-		http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-			fmt.Fprintf(w, "Bot is running!")
-		})
-
 		http.HandleFunc("/api/status", corsMiddleware(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 
