@@ -11,10 +11,21 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/joho/godotenv"
-	"github.com/mehkij/poke-auction/internal/cmd"
+	"github.com/mehkij/poke-auction/internal/dispatcher"
 )
 
+type Config struct {
+	globalDispatcher *dispatcher.Dispatcher
+}
+
+var Cfg = &Config{
+	globalDispatcher: dispatcher.NewDispatcher(),
+}
+
 func main() {
+	Cfg.globalDispatcher.Start()
+	defer Cfg.globalDispatcher.Stop()
+
 	log.Println("Loading environment variables...")
 	err := godotenv.Load()
 	if err != nil {
@@ -35,7 +46,7 @@ func main() {
 		log.Fatalf("error creating new session: %s", err)
 	}
 
-	session.AddHandler(cmd.HandleInteraction)
+	session.AddHandler(HandleInteraction)
 	session.Identify.Intents = discordgo.IntentsAllWithoutPrivileged
 
 	log.Println("Opening new session...")
@@ -90,7 +101,7 @@ func main() {
 	}()
 
 	log.Println("Registering commands...")
-	cmds := cmd.RegisterAll(session, appID, "")
+	cmds := RegisterAll(session, appID, "")
 	log.Println("Commands successfully registered!")
 
 	log.Println("The bot is online!")
