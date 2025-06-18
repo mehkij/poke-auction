@@ -34,7 +34,7 @@ func BidTimer(s *discordgo.Session, i *discordgo.InteractionCreate, msg *discord
 	}
 
 	fmt.Println("Timer starting...")
-	utils.Timer(15, stopSignal, func(duration int) {
+	utils.Timer(30, stopSignal, func(duration int) {
 		// Defensive check for embed
 		if len(msg.Embeds) == 0 {
 			log.Printf("Timer update: message has no embeds!")
@@ -365,7 +365,7 @@ func BidCallback(s *discordgo.Session, i *discordgo.InteractionCreate, gd *dispa
 				Image:       msg.Embeds[0].Image,
 				Fields:      fields,
 				Footer: &discordgo.MessageEmbedFooter{
-					Text: "Timer: 15",
+					Text: "Timer: 30",
 				},
 			},
 		},
