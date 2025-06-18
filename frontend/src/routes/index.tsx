@@ -1,10 +1,15 @@
-import Button from "./components/Button";
-import Status from "./components/Status";
-import GHLogo from "./assets/github-mark.svg";
-import DiscordLogo from "./assets/Discord-Symbol-White.svg";
-import PokeBall from "./assets/Poke_Ball.webp";
+import { createFileRoute } from "@tanstack/react-router";
+import Button from "../components/Button";
+import Status from "../components/Status";
+import GHLogo from "../assets/github-mark.svg";
+import DiscordLogo from "../assets/Discord-Symbol-White.svg";
+import PokeBall from "../assets/Poke_Ball.webp";
 
-function App() {
+export const Route = createFileRoute("/")({
+  component: RouteComponent,
+});
+
+function RouteComponent() {
   return (
     <div className="h-screen w-screen flex flex-col justify-center items-center">
       <img className="size-64 m-4" src={PokeBall}></img>
@@ -36,5 +41,3 @@ function App() {
     </div>
   );
 }
-
-export default App;
