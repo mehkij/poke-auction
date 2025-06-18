@@ -82,7 +82,7 @@ func main() {
 				"uptime": "%s",
 				"guilds": %d,
 				"ping": %d,
-				"version": "1.0.0"
+				"version": "1.1.0"
 			}`, getUptime(), guilds, session.HeartbeatLatency().Milliseconds())
 
 			w.Write([]byte(res))
