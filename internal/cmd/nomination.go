@@ -8,24 +8,10 @@ import (
 	"time"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/mehkij/poke-auction/internal/dispatcher"
 	"github.com/mehkij/poke-auction/internal/fetch"
 	"github.com/mehkij/poke-auction/internal/types"
 )
-
-// "/nominate" command definition.
-var NominateCommand = &Command{
-	Name:        "nominate",
-	Description: "Nominate a Pokemon.",
-	Options: []*discordgo.ApplicationCommandOption{
-		{
-			Type:        discordgo.ApplicationCommandOptionString,
-			Name:        "name",
-			Description: "The name of the Pokemon.",
-			Required:    true,
-		},
-	},
-	Callback: NominateCallback,
-}
 
 // Returns the order in which players will nominate a Pokemon to be auctioned.
 func RollNominationOrder(activeState *types.AuctionState) []*types.Player {
@@ -48,9 +34,9 @@ func RollNominationOrder(activeState *types.AuctionState) []*types.Player {
 	return order
 }
 
-func NominationPhase(s *discordgo.Session, i *discordgo.InteractionCreate, activeState *types.AuctionState) error {
+func NominationPhase(s *discordgo.Session, i *discordgo.InteractionCreate, activeState *types.AuctionState, gd *dispatcher.Dispatcher) error {
 	if len(activeState.Participants) == 0 {
-		edit := &discordgo.MessageEdit{
+		done := gd.QueueEditMessage(s, i.ChannelID, i.Message.ID, &discordgo.MessageEdit{
 			Channel: i.ChannelID,
 			ID:      i.Message.ID,
 			Embeds: &[]*discordgo.MessageEmbed{
@@ -60,10 +46,8 @@ func NominationPhase(s *discordgo.Session, i *discordgo.InteractionCreate, activ
 				},
 			},
 			Components: &[]discordgo.MessageComponent{},
-		}
-
-		_, err := s.ChannelMessageEditComplex(edit)
-		return err
+		})
+		<-done
 	}
 
 	log.Println("Locking Mutex...")
@@ -117,13 +101,14 @@ func NominationPhase(s *discordgo.Session, i *discordgo.InteractionCreate, activ
 	state.NominationPhase = true
 	activeState.AuctionStateMu.Unlock()
 
-	_, err := s.ChannelMessageEditComplex(edit)
+	done := gd.QueueEditMessage(s, i.ChannelID, i.Message.ID, edit)
+	<-done
 
 	log.Println("Done setting up Nomination Phase!")
-	return err
+	return nil
 }
 
-func NominateCallback(s *discordgo.Session, i *discordgo.InteractionCreate) {
+func NominateCallback(s *discordgo.Session, i *discordgo.InteractionCreate, gd *dispatcher.Dispatcher) {
 	mu.Lock()
 
 	log.Printf("NominateCallback called in channel: %s\n", i.ChannelID)
@@ -144,30 +129,26 @@ func NominateCallback(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	mu.Unlock()
 
 	if activeState == nil || !activeState.NominationPhase {
-		err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		done := gd.QueueInteractionResponse(s, i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
 				Content: "No active nomination phase found!",
 				Flags:   discordgo.MessageFlagsEphemeral,
 			},
 		})
-		if err != nil {
-			log.Printf("error responding to command: %s\n", err)
-		}
+		<-done
 		return
 	}
 
 	if i.Member.User.ID != activeState.NominationOrder[activeState.CurrentNominator].UserID {
-		err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		done := gd.QueueInteractionResponse(s, i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
 				Content: "It's not your turn to nominate!",
 				Flags:   discordgo.MessageFlagsEphemeral,
 			},
 		})
-		if err != nil {
-			log.Printf("error responding to command: %s\n", err)
-		}
+		<-done
 		return
 	}
 
@@ -178,31 +159,26 @@ func NominateCallback(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	}
 
 	if slices.Contains(activeState.PreviouslyNominated, pokemonName) {
-		err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		done := gd.QueueInteractionResponse(s, i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
 				Content: "Cannot nominate a Pokemon that has already been nominated! Please nominate a different Pokemon!",
 				Flags:   discordgo.MessageFlagsEphemeral,
 			},
 		})
-		if err != nil {
-			log.Printf("error responding to command: %s\n", err)
-		}
+		<-done
 		return
 	}
 
 	// Immediately acknowledge interaction
-	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+	done := gd.QueueInteractionResponse(s, i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
 			Content: fmt.Sprintf("Nominating %s...", pokemonName),
 			Flags:   discordgo.MessageFlagsEphemeral,
 		},
 	})
-	if err != nil {
-		log.Printf("error responding to interaction: %s\n", err)
-		return
-	}
+	<-done
 
 	pokemon, err := fetch.FetchPokemon(activeState.GenNumber, pokemonName)
 	if err != nil {
@@ -243,7 +219,10 @@ func NominateCallback(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		},
 	}
 
-	updatedMsg, err := s.ChannelMessageEditComplex(edit)
+	done = gd.QueueEditMessage(s, msg.ChannelID, msg.ID, edit)
+	<-done
+
+	updatedMsg, err := s.ChannelMessage(i.ChannelID, msg.ID)
 	if err != nil {
 		log.Printf("error editing message: %s\n", err)
 		return
@@ -262,5 +241,5 @@ func NominateCallback(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	}
 	activeState.AuctionStateMu.Unlock()
 
-	updateBidTimer(s, i, activeState, updatedMsg, player)
+	updateBidTimer(s, i, activeState, updatedMsg, player, gd)
 }

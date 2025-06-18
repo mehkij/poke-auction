@@ -8,30 +8,10 @@ import (
 	"sync"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/mehkij/poke-auction/internal/dispatcher"
 	"github.com/mehkij/poke-auction/internal/types"
 	"github.com/mehkij/poke-auction/internal/utils"
 )
-
-// "/auction" command definition.
-var AuctionCommand = &Command{
-	Name:        "auction",
-	Description: "Start a Pokemon auction.",
-	Options: []*discordgo.ApplicationCommandOption{
-		{
-			Type:        discordgo.ApplicationCommandOptionString,
-			Name:        "generation",
-			Description: "The generation of the pool of Pokemon to choose from.",
-			Required:    true,
-		},
-		{
-			Type:        discordgo.ApplicationCommandOptionString,
-			Name:        "timer",
-			Description: "Set the time before the auction begins in seconds.",
-			Required:    true,
-		},
-	},
-	Callback: AuctionCallback,
-}
 
 var (
 	mu            sync.Mutex
@@ -70,7 +50,7 @@ func JoinAuction(i *discordgo.InteractionCreate) []*types.Player {
 	return state.Participants
 }
 
-func AuctionTimer(s *discordgo.Session, i *discordgo.InteractionCreate, timerStr string, stopSignal chan bool) {
+func AuctionTimer(s *discordgo.Session, i *discordgo.InteractionCreate, timerStr string, stopSignal chan bool, gd *dispatcher.Dispatcher) {
 	timeLeft, err := strconv.Atoi(timerStr)
 	if err != nil {
 		log.Printf("error converting timer to int: %s", err)
@@ -97,7 +77,7 @@ func AuctionTimer(s *discordgo.Session, i *discordgo.InteractionCreate, timerStr
 			participantsValue = strings.Join(usernames, "\n")
 		}
 
-		edit := &discordgo.MessageEdit{
+		gd.QueueEditMessage(s, i.ChannelID, i.Message.ID, &discordgo.MessageEdit{
 			Channel: i.ChannelID,
 			ID:      i.Message.ID,
 			Embeds: &[]*discordgo.MessageEmbed{
@@ -116,9 +96,7 @@ func AuctionTimer(s *discordgo.Session, i *discordgo.InteractionCreate, timerStr
 					},
 				},
 			},
-		}
-
-		s.ChannelMessageEditComplex(edit)
+		})
 	}, func() {
 		mu.Lock()
 		state, exists := auctionStates[i.Message.ID]
@@ -133,36 +111,32 @@ func AuctionTimer(s *discordgo.Session, i *discordgo.InteractionCreate, timerStr
 			state.AuctionStateMu.Unlock()
 		}
 
-		err := NominationPhase(s, i, state)
+		err := NominationPhase(s, i, state, gd)
 		if err != nil {
 			fmt.Printf("error starting nomination phase on timer end: %s", err)
 			return
 		}
-	}, func() {})
+	}, func() {
+		log.Printf("Auction timer %s in channel %s has been interrupted.", i.Message.ID, i.ChannelID)
+	})
 }
 
 // Called when "Join Auction" button is clicked.
-func HandleAuctionInteraction(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+func HandleAuctionInteraction(s *discordgo.Session, i *discordgo.InteractionCreate, gd *dispatcher.Dispatcher) {
+	done := gd.QueueInteractionResponse(s, i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseDeferredMessageUpdate,
 	})
-	if err != nil {
-		log.Printf("error responding to interaction: %s\n", err)
-		return
-	}
+	<-done
 
 	JoinAuction(i)
 }
 
 // Called when "Force Start" button is clicked.
-func HandleForceStartAuction(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+func HandleForceStartAuction(s *discordgo.Session, i *discordgo.InteractionCreate, gd *dispatcher.Dispatcher) {
+	done := gd.QueueInteractionResponse(s, i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseDeferredMessageUpdate,
 	})
-	if err != nil {
-		log.Printf("error responding to interaction: %s\n", err)
-		return
-	}
+	<-done
 
 	mu.Lock()
 	state, exists := auctionStates[i.Message.ID]
@@ -177,14 +151,14 @@ func HandleForceStartAuction(s *discordgo.Session, i *discordgo.InteractionCreat
 		state.AuctionStateMu.Unlock()
 	}
 
-	err = NominationPhase(s, i, state)
+	err := NominationPhase(s, i, state, gd)
 	if err != nil {
 		log.Printf("error starting nomination phase: %s\n", err)
-		s.ChannelMessageSend(i.ChannelID, fmt.Sprintf("Error starting nomination phase: %s", err))
+		gd.QueueSendMessage(s, i.ChannelID, fmt.Sprintf("Error starting nomination phase: %s", err))
 	}
 }
 
-func AuctionCallback(s *discordgo.Session, i *discordgo.InteractionCreate) {
+func AuctionCallback(s *discordgo.Session, i *discordgo.InteractionCreate, gd *dispatcher.Dispatcher) {
 	// Reset participants list at start of new auction
 	participants := make([]*types.Player, 0)
 
@@ -198,20 +172,17 @@ func AuctionCallback(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	}
 
 	if gen < 1 || gen > 9 {
-		err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		gd.QueueInteractionResponse(s, i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
 				Content: "Please choose a valid generation! (1-9)",
 				Flags:   discordgo.MessageFlagsEphemeral,
-			},
-		})
-		if err != nil {
-			log.Printf("error responding to command: %s\n", err)
-		}
+			}})
+
 		return
 	}
 
-	err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+	gd.QueueInteractionResponse(s, i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
 			Embeds: []*discordgo.MessageEmbed{
@@ -248,10 +219,6 @@ func AuctionCallback(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			},
 		},
 	})
-	if err != nil {
-		log.Printf("error responding to command: %s", err)
-		return
-	}
 
 	// Get the message we just created
 	msg, err := s.InteractionResponse(i.Interaction)
@@ -276,7 +243,7 @@ func AuctionCallback(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	mu.Unlock()
 
 	// Start the timer with the original timer value with a cleanup channel
-	go AuctionTimer(s, newInteraction, timerStr, stopSignal)
+	go AuctionTimer(s, newInteraction, timerStr, stopSignal, gd)
 }
 
 func safeCloseChannel(ch chan bool) {

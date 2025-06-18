@@ -10,27 +10,14 @@ import (
 	"time"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/mehkij/poke-auction/internal/dispatcher"
 	"github.com/mehkij/poke-auction/internal/export"
 	"github.com/mehkij/poke-auction/internal/fetch"
 	"github.com/mehkij/poke-auction/internal/types"
 	"github.com/mehkij/poke-auction/internal/utils"
 )
 
-var BidCommand = &Command{
-	Name:        "bid",
-	Description: "Bid on a Pokemon.",
-	Options: []*discordgo.ApplicationCommandOption{
-		{
-			Type:        discordgo.ApplicationCommandOptionString,
-			Name:        "amount",
-			Description: "How many PokeDollars to bid.",
-			Required:    true,
-		},
-	},
-	Callback: BidCallback,
-}
-
-func BidTimer(s *discordgo.Session, i *discordgo.InteractionCreate, msg *discordgo.Message, player *types.Player, pokemon *types.Pokemon, stopSignal chan bool, activeState *types.AuctionState) {
+func BidTimer(s *discordgo.Session, i *discordgo.InteractionCreate, msg *discordgo.Message, player *types.Player, pokemon *types.Pokemon, stopSignal chan bool, activeState *types.AuctionState, gd *dispatcher.Dispatcher) {
 	// Add detailed parameter checking
 	log.Printf("BidTimer parameters check: session=%v, interaction=%v, msg=%v, player=%v, pokemon=%v, stopSignal=%v",
 		s != nil, i != nil, msg != nil, player != nil, pokemon != nil, stopSignal != nil)
@@ -71,10 +58,7 @@ func BidTimer(s *discordgo.Session, i *discordgo.InteractionCreate, msg *discord
 			},
 		}
 
-		_, err := s.ChannelMessageEditComplex(edit)
-		if err != nil {
-			log.Printf("error updating timer: %v", err)
-		}
+		gd.QueueEditMessage(s, msg.ChannelID, msg.ID, edit)
 	}, func() {
 		var highestBidderID string
 		var highestBid int
@@ -146,19 +130,14 @@ func BidTimer(s *discordgo.Session, i *discordgo.InteractionCreate, msg *discord
 		activeState.AuctionStateMu.Unlock()
 
 		if activeState.BalanceMessageID == "" {
-			msg, err := s.ChannelMessageSend(activeState.ChannelID, strings.Join(remaining, "\n"))
-			if err != nil {
-				log.Printf("error notifying users of their remaining balance: %s", err)
-				return
-			}
-
+			gd.QueueSendMessage(s, activeState.ChannelID, strings.Join(remaining, "\n"))
 			activeState.BalanceMessageID = msg.ID
 		} else {
-			_, err := s.ChannelMessageEdit(activeState.ChannelID, activeState.BalanceMessageID, strings.Join(remaining, "\n"))
-			if err != nil {
-				log.Printf("error notifying users of their remaining balance: %s", err)
-				return
+			content := strings.Join(remaining, "\n")
+			edit := &discordgo.MessageEdit{
+				Content: &content,
 			}
+			gd.QueueEditMessage(s, activeState.ChannelID, activeState.BalanceMessageID, edit)
 		}
 
 		activeState.AuctionStateMu.Lock()
@@ -171,7 +150,7 @@ func BidTimer(s *discordgo.Session, i *discordgo.InteractionCreate, msg *discord
 			log.Printf("Deleted auction state for message ID: %s", msg.ID)
 			activeState.AuctionStateMu.Unlock()
 
-			_, err := s.ChannelMessageEditComplex(&discordgo.MessageEdit{
+			gd.QueueEditMessage(s, msg.ChannelID, msg.ID, &discordgo.MessageEdit{
 				Channel: msg.ChannelID,
 				ID:      msg.ID,
 				Embeds: &[]*discordgo.MessageEmbed{
@@ -181,9 +160,6 @@ func BidTimer(s *discordgo.Session, i *discordgo.InteractionCreate, msg *discord
 					},
 				},
 			})
-			if err != nil {
-				log.Printf("error updating final message: %v", err)
-			}
 
 			export.ExportTeam(s, i, activeState.Participants, activeState.GenNumber)
 			return
@@ -199,7 +175,7 @@ func BidTimer(s *discordgo.Session, i *discordgo.InteractionCreate, msg *discord
 		}
 		newInteraction.Message = msg
 
-		err := NominationPhase(s, newInteraction, activeState)
+		err := NominationPhase(s, newInteraction, activeState, gd)
 		if err != nil {
 			log.Printf("error starting nomination phase: %v", err)
 		}
@@ -214,21 +190,18 @@ func BidTimer(s *discordgo.Session, i *discordgo.InteractionCreate, msg *discord
 Making a bid should be blocking so that the order of incoming bids are preserved.
 This also avoids common bugs surrounding timers not properly resetting per bid.
 */
-func BidCallback(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+func BidCallback(s *discordgo.Session, i *discordgo.InteractionCreate, gd *dispatcher.Dispatcher) {
+	gd.QueueInteractionResponse(s, i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
 			Flags:   discordgo.MessageFlagsEphemeral,
 			Content: fmt.Sprintf("Bidding $%s...", i.ApplicationCommandData().Options[0].StringValue()),
 		},
 	})
-	if err != nil {
-		log.Printf("error sending initial response: %v", err)
-		return
-	}
+	// <-done
 
 	if len(i.ApplicationCommandData().Options) == 0 {
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		gd.QueueInteractionResponse(s, i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
 				Content: "Invalid bid command usage",
@@ -315,9 +288,9 @@ func BidCallback(s *discordgo.Session, i *discordgo.InteractionCreate) {
 
 			// Ensure user has enough PokeDollars to make a bid
 			if p.PokeDollars >= bidAmount {
-				activeState.AuctionStateMu.Lock()
+				// activeState.AuctionStateMu.Lock()
 				activeState.BidSoFar[i.Member.User.ID] = bidAmount
-				activeState.AuctionStateMu.Unlock()
+				// activeState.AuctionStateMu.Unlock()
 				bidder = p
 			} else {
 				utils.CreateFollowupEphemeralError(s, i, "Not enough PokeDollars!")
@@ -382,7 +355,7 @@ func BidCallback(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		})
 	}
 
-	edit := &discordgo.MessageEdit{
+	done := gd.QueueEditMessage(s, i.ChannelID, msg.ID, &discordgo.MessageEdit{
 		Channel: i.ChannelID,
 		ID:      msg.ID,
 		Embeds: &[]*discordgo.MessageEmbed{
@@ -396,9 +369,10 @@ func BidCallback(s *discordgo.Session, i *discordgo.InteractionCreate) {
 				},
 			},
 		},
-	}
+	})
+	<-done
 
-	updatedMsg, err := s.ChannelMessageEditComplex(edit)
+	updatedMsg, err := s.ChannelMessage(i.ChannelID, msg.ID)
 	if err != nil {
 		log.Printf("error editing embed: %s\n", err)
 		return
@@ -415,11 +389,11 @@ func BidCallback(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	activeState.AuctionStateMu.Unlock()
 
 	log.Println("About to call updateBidTimer...")
-	updateBidTimer(s, i, activeState, updatedMsg, bidder)
+	updateBidTimer(s, i, activeState, updatedMsg, bidder, gd)
 	log.Println("Called updateBidTimer")
 }
 
-func updateBidTimer(s *discordgo.Session, i *discordgo.InteractionCreate, state *types.AuctionState, msg *discordgo.Message, bidder *types.Player) {
+func updateBidTimer(s *discordgo.Session, i *discordgo.InteractionCreate, state *types.AuctionState, msg *discordgo.Message, bidder *types.Player, gd *dispatcher.Dispatcher) {
 	log.Println("Entered updateBidTimer function")
 
 	// Validate parameters
@@ -467,7 +441,7 @@ func updateBidTimer(s *discordgo.Session, i *discordgo.InteractionCreate, state 
 				debug.PrintStack()
 			}
 		}()
-		BidTimer(s, i, msg, bidder, state.NominatedPokemon, newStopSignal, state)
+		BidTimer(s, i, msg, bidder, state.NominatedPokemon, newStopSignal, state, gd)
 	}()
 	log.Println("Goroutine started")
 }
