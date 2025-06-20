@@ -1,6 +1,6 @@
 # poke-auction
 
-A Discord bot inspired by the YouTube video made by WolfeyVGC. You can check out the video [here](https://youtu.be/g_ek_JuSMVo?si=3k_ZY_UPV7eKgMIX)!
+A Discord bot inspired by the YouTube video made by WolfeyVGC. You can find an invite link for the bot [here](https://pokeauction.vercel.app/). You can also check out the inspiration video [here](https://youtu.be/g_ek_JuSMVo?si=3k_ZY_UPV7eKgMIX)!
 
 ## Commands
 
