@@ -154,7 +154,6 @@ func HandleForceStartAuction(s *discordgo.Session, i *discordgo.InteractionCreat
 	err := NominationPhase(s, i, state, gd)
 	if err != nil {
 		log.Printf("error starting nomination phase: %s\n", err)
-		gd.QueueSendMessage(s, i.ChannelID, fmt.Sprintf("Error starting nomination phase: %s", err))
 	}
 }
 
