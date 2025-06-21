@@ -28,8 +28,6 @@ Each player begins with 10,000 PokéDollars. If a player happens to run out a mo
 This is a list of known issues and bugs with the bot currently. If you come across any bugs that have not already been reported or have not been listed below, please create a GitHub issue detailing the bug along with the steps to reproduce.
 
 - Starting multiple auctions at once causes the auction timers to freeze up.
-- There seems to be a bug where if an auction fails due to no players joining, trying to nominate a Pokemon in a subsequently successful auction causes an index out of range error, resulting in an "application did not respond" message.
-  - Something also happens where if you try for the third time to start an auction, it goes through, but the message that gets edited is the first nomination message, not the most recent one.
 
 ## Planned Features
 
