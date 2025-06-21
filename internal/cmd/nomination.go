@@ -35,21 +35,6 @@ func RollNominationOrder(activeState *types.AuctionState) []*types.Player {
 }
 
 func NominationPhase(s *discordgo.Session, i *discordgo.InteractionCreate, activeState *types.AuctionState, gd *dispatcher.Dispatcher) error {
-	if len(activeState.Participants) == 0 {
-		done := gd.QueueEditMessage(s, i.ChannelID, i.Message.ID, &discordgo.MessageEdit{
-			Channel: i.ChannelID,
-			ID:      i.Message.ID,
-			Embeds: &[]*discordgo.MessageEmbed{
-				{
-					Title:       "Error Starting Nomination Phase",
-					Description: "Cannot start nomination phase with no participants!",
-				},
-			},
-			Components: &[]discordgo.MessageComponent{},
-		})
-		<-done
-	}
-
 	log.Println("Locking Mutex...")
 	activeState.AuctionStateMu.Lock()
 	state, exists := auctionStates[i.Message.ID]

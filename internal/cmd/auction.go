@@ -143,6 +143,22 @@ func HandleForceStartAuction(s *discordgo.Session, i *discordgo.InteractionCreat
 	mu.Unlock()
 	if exists {
 		state.AuctionStateMu.Lock()
+		if len(state.Participants) == 0 {
+			gd.QueueEditMessage(s, i.ChannelID, i.Message.ID, &discordgo.MessageEdit{
+				Channel: i.ChannelID,
+				ID:      i.Message.ID,
+				Embeds: &[]*discordgo.MessageEmbed{
+					{
+						Title:       "Error Starting Nomination Phase",
+						Description: "Cannot start nomination phase with no participants!",
+					},
+				},
+				Components: &[]discordgo.MessageComponent{},
+			})
+
+			log.Printf("cannot force start: no participants have joined the auction")
+			return
+		}
 		state.StopSignal <- true
 		state.CurrentNominator = -1 // Starts at -1 so that when NominationPhase is called, it is incremented to 0
 		state.NominationOrder = RollNominationOrder(state)
