@@ -7,6 +7,14 @@ type ChangelogEntry = {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "1.1.1",
+    date: "2025-06-21",
+    description: "A quick fix to an annoying...",
+    changes: [
+      `Fixed an issue where if you force start an auction with no players, and then you begin a successful auction, you get an "application did not respond" error after attempting to nominate a Pokemon`,
+    ],
+  },
+  {
     version: "1.1.0",
     date: "2025-06-18",
     description: "The great refactor!",
