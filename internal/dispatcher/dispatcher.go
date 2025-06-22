@@ -11,10 +11,10 @@ import (
 
 // MessageTask represents a task to be executed by the dispatcher
 type MessageTask struct {
-	Operation func() error
+	Operation func() (*discordgo.Message, error)
 	ChannelID string
 	MessageID string
-	Done      chan struct{}
+	Done      chan *discordgo.Message
 }
 
 // Dispatcher manages a queue of message tasks for each channel
@@ -48,9 +48,9 @@ func (d *Dispatcher) Stop() {
 }
 
 // QueueMessage adds a message task to the queue for a specific channel
-func (d *Dispatcher) QueueMessage(task MessageTask) chan struct{} {
+func (d *Dispatcher) QueueMessage(task MessageTask) chan *discordgo.Message {
 	if task.Done == nil {
-		task.Done = make(chan struct{})
+		task.Done = make(chan *discordgo.Message, 1)
 	}
 
 	d.mu.Lock()
@@ -83,9 +83,11 @@ func (d *Dispatcher) processTasks() {
 			for channelID, queue := range d.queues {
 				select {
 				case task := <-queue:
-					if err := task.Operation(); err != nil {
+					msg, err := task.Operation()
+					if err != nil {
 						log.Printf("Error processing message task for channel %s: %v", channelID, err)
 					}
+					task.Done <- msg
 					close(task.Done)
 				default:
 					// No tasks in queue, continue
@@ -97,11 +99,10 @@ func (d *Dispatcher) processTasks() {
 }
 
 // QueueEditMessage is a helper function to queue a message edit operation
-func (d *Dispatcher) QueueEditMessage(s *discordgo.Session, channelID, messageID string, edit *discordgo.MessageEdit) chan struct{} {
+func (d *Dispatcher) QueueEditMessage(s *discordgo.Session, channelID, messageID string, edit *discordgo.MessageEdit) chan *discordgo.Message {
 	done := d.QueueMessage(MessageTask{
-		Operation: func() error {
-			_, err := s.ChannelMessageEditComplex(edit)
-			return err
+		Operation: func() (*discordgo.Message, error) {
+			return s.ChannelMessageEditComplex(edit)
 		},
 		ChannelID: channelID,
 		MessageID: messageID,
@@ -111,11 +112,10 @@ func (d *Dispatcher) QueueEditMessage(s *discordgo.Session, channelID, messageID
 }
 
 // QueueSendMessage is a helper function to queue a message send operation
-func (d *Dispatcher) QueueSendMessage(s *discordgo.Session, channelID string, content *discordgo.MessageSend) chan struct{} {
+func (d *Dispatcher) QueueSendMessage(s *discordgo.Session, channelID string, content *discordgo.MessageSend) chan *discordgo.Message {
 	done := d.QueueMessage(MessageTask{
-		Operation: func() error {
-			_, err := s.ChannelMessageSendComplex(channelID, content)
-			return err
+		Operation: func() (*discordgo.Message, error) {
+			return s.ChannelMessageSendComplex(channelID, content)
 		},
 		ChannelID: channelID,
 	})
@@ -124,10 +124,10 @@ func (d *Dispatcher) QueueSendMessage(s *discordgo.Session, channelID string, co
 }
 
 // QueueInteractionResponse is a helper function to queue an interaction response
-func (d *Dispatcher) QueueInteractionResponse(s *discordgo.Session, i *discordgo.Interaction, response *discordgo.InteractionResponse) chan struct{} {
+func (d *Dispatcher) QueueInteractionResponse(s *discordgo.Session, i *discordgo.Interaction, response *discordgo.InteractionResponse) chan *discordgo.Message {
 	done := d.QueueMessage(MessageTask{
-		Operation: func() error {
-			return s.InteractionRespond(i, response)
+		Operation: func() (*discordgo.Message, error) {
+			return nil, s.InteractionRespond(i, response)
 		},
 		ChannelID: i.ChannelID,
 	})
