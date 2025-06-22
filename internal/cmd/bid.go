@@ -130,14 +130,32 @@ func BidTimer(s *discordgo.Session, i *discordgo.InteractionCreate, msg *discord
 		activeState.AuctionStateMu.Unlock()
 
 		if activeState.BalanceMessageID == "" {
-			gd.QueueSendMessage(s, activeState.ChannelID, strings.Join(remaining, "\n"))
-			activeState.BalanceMessageID = msg.ID
-		} else {
-			content := strings.Join(remaining, "\n")
-			edit := &discordgo.MessageEdit{
-				Content: &content,
+			m := &discordgo.MessageSend{
+				Embeds: []*discordgo.MessageEmbed{
+					{
+						Title:       "Player Balances",
+						Description: strings.Join(remaining, "\n"),
+					},
+				},
 			}
-			gd.QueueEditMessage(s, activeState.ChannelID, activeState.BalanceMessageID, edit)
+			done := gd.QueueSendMessage(s, activeState.ChannelID, m)
+			sentMsg := <-done
+			if sentMsg != nil {
+				activeState.BalanceMessageID = sentMsg.ID
+			}
+		} else {
+			edit := &discordgo.MessageEdit{
+				Channel: msg.ChannelID,
+				ID:      activeState.BalanceMessageID,
+				Embeds: &[]*discordgo.MessageEmbed{
+					{
+						Title:       "Player Balances",
+						Description: strings.Join(remaining, "\n"),
+					},
+				},
+			}
+			done := gd.QueueEditMessage(s, activeState.ChannelID, activeState.BalanceMessageID, edit)
+			<-done
 		}
 
 		activeState.AuctionStateMu.Lock()
