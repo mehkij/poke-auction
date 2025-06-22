@@ -111,10 +111,10 @@ func (d *Dispatcher) QueueEditMessage(s *discordgo.Session, channelID, messageID
 }
 
 // QueueSendMessage is a helper function to queue a message send operation
-func (d *Dispatcher) QueueSendMessage(s *discordgo.Session, channelID string, content string) chan struct{} {
+func (d *Dispatcher) QueueSendMessage(s *discordgo.Session, channelID string, content *discordgo.MessageSend) chan struct{} {
 	done := d.QueueMessage(MessageTask{
 		Operation: func() error {
-			_, err := s.ChannelMessageSend(channelID, content)
+			_, err := s.ChannelMessageSendComplex(channelID, content)
 			return err
 		},
 		ChannelID: channelID,
