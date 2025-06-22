@@ -7,7 +7,7 @@ A Discord bot inspired by the YouTube video made by WolfeyVGC. You can find an i
 Currently, the bot has these available commands:
 
 ```
-/auction [generation] [time]
+/auction [generation (1-9)] [time (in seconds) before the auction begins]
 /nominate [pokemon]
 /bid [amount]
 /stopall
