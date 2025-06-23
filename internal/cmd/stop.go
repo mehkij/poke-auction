@@ -49,7 +49,7 @@ func StopAllCallback(s *discordgo.Session, i *discordgo.InteractionCreate, gd *d
 				Embeds: &[]*discordgo.MessageEmbed{
 					{
 						Title:       "Auction closed.",
-						Description: "A /stopall command was issued, therefore we will be closing all auctions.",
+						Description: "A /stopall command was issued, this auction is now closed.",
 					},
 				},
 				Components: &[]discordgo.MessageComponent{},
