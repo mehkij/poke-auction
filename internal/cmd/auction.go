@@ -18,7 +18,7 @@ var (
 	auctionStates = make(map[string]*types.AuctionState)
 )
 
-func JoinAuction(i *discordgo.InteractionCreate) []*types.Player {
+func JoinAuction(i *discordgo.InteractionCreate) map[string]*types.Player {
 	user := i.Member.User
 	username := user.Username
 	id := user.ID
@@ -41,11 +41,11 @@ func JoinAuction(i *discordgo.InteractionCreate) []*types.Player {
 	}
 
 	// Add new participant
-	state.Participants = append(state.Participants, &types.Player{
+	state.Participants[id] = &types.Player{
 		Username:    username,
 		UserID:      id,
 		PokeDollars: 10000,
-	})
+	}
 
 	return state.Participants
 }
@@ -175,7 +175,7 @@ func HandleForceStartAuction(s *discordgo.Session, i *discordgo.InteractionCreat
 
 func AuctionCallback(s *discordgo.Session, i *discordgo.InteractionCreate, gd *dispatcher.Dispatcher) {
 	// Reset participants list at start of new auction
-	participants := make([]*types.Player, 0)
+	participants := make(map[string]*types.Player, 0)
 
 	// Get timer value directly from command options
 	timerStr := i.ApplicationCommandData().Options[1].StringValue()

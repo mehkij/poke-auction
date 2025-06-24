@@ -3,7 +3,7 @@ package types
 import "sync"
 
 type AuctionState struct {
-	Participants   []*Player
+	Participants   map[string]*Player // key: UserID
 	AuctionStateMu sync.Mutex
 
 	StopSignal       chan bool
@@ -18,7 +18,7 @@ type AuctionState struct {
 	PreviouslyNominated []string
 
 	BiddingPhase  bool
-	BidSoFar      map[string]int
+	BidSoFar      map[string]int // key: UserID
 	ProcessingBid bool
 	HighestBid    int
 }

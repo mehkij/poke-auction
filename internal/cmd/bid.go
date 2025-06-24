@@ -293,29 +293,23 @@ func BidCallback(s *discordgo.Session, i *discordgo.InteractionCreate, gd *dispa
 		return
 	}
 
-	var bidder *types.Player
-
 	activeState.AuctionStateMu.Lock()
-	for _, p := range activeState.Participants {
-		if i.Member.User.ID == p.UserID {
-			// Ensure bid is not 0
-			if bidAmount == 0 {
-				utils.CreateFollowupEphemeralError(s, i, "Bid amount must be greater than 0!")
-				return
-			}
+	bidder, ok := activeState.Participants[i.Member.User.ID]
+	if !ok {
+		log.Println("user not an active participant in this auction")
+		return
+	}
 
-			// Ensure user has enough PokeDollars to make a bid
-			if p.PokeDollars >= bidAmount {
-				// activeState.AuctionStateMu.Lock()
-				activeState.BidSoFar[i.Member.User.ID] = bidAmount
-				// activeState.AuctionStateMu.Unlock()
-				bidder = p
-			} else {
-				utils.CreateFollowupEphemeralError(s, i, "Not enough PokeDollars!")
-				return
-			}
-			break
-		}
+	if bidAmount == 0 {
+		utils.CreateFollowupEphemeralError(s, i, "Bid amount must be greater than 0!")
+		return
+	}
+
+	if bidder.PokeDollars >= bidAmount {
+		activeState.BidSoFar[i.Member.User.ID] = bidAmount
+	} else {
+		utils.CreateFollowupEphemeralError(s, i, "Not enough PokeDollars!")
+		return
 	}
 	activeState.AuctionStateMu.Unlock()
 
@@ -388,13 +382,7 @@ func BidCallback(s *discordgo.Session, i *discordgo.InteractionCreate, gd *dispa
 			},
 		},
 	})
-	<-done
-
-	updatedMsg, err := s.ChannelMessage(i.ChannelID, msg.ID)
-	if err != nil {
-		log.Printf("error editing embed: %s\n", err)
-		return
-	}
+	updatedMsg := <-done
 
 	activeState.AuctionStateMu.Lock()
 	// If a timer is currently running, stop it.

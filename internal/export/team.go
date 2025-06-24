@@ -8,7 +8,7 @@ import (
 	"github.com/mehkij/poke-auction/internal/types"
 )
 
-func ExportTeam(s *discordgo.Session, i *discordgo.InteractionCreate, players []*types.Player, gen int) {
+func ExportTeam(s *discordgo.Session, i *discordgo.InteractionCreate, players map[string]*types.Player, gen int) {
 	var files []*discordgo.File
 	for _, player := range players {
 		var d []byte

@@ -15,8 +15,13 @@ import (
 
 // Returns the order in which players will nominate a Pokemon to be auctioned.
 func RollNominationOrder(activeState *types.AuctionState) []*types.Player {
-	remaining := make([]*types.Player, len(activeState.Participants))
-	copy(remaining, activeState.Participants)
+	var participants []*types.Player
+	for _, p := range activeState.Participants {
+		participants = append(participants, p)
+	}
+
+	remaining := make([]*types.Player, len(participants))
+	copy(remaining, participants)
 
 	var order []*types.Player
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
