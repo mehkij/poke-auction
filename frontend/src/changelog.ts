@@ -7,6 +7,14 @@ type ChangelogEntry = {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "1.1.3",
+    date: "2025-06-26",
+    description: "It was me, I dealt it!",
+    changes: [
+      "Fixed an issue where bidding at the same time as someone else would cause the name of the highest bidder to always be the same person no matter what",
+    ],
+  },
+  {
     version: "1.1.2",
     date: "2025-06-22",
     description:
