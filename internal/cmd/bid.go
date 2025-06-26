@@ -335,15 +335,26 @@ func BidCallback(s *discordgo.Session, i *discordgo.InteractionCreate, gd *dispa
 
 	var biddersField string
 	var highestBid string
+
+	activeState.AuctionStateMu.Lock()
+	var highestBidValue int
+	var highestBidderID string
 	for k, v := range activeState.BidSoFar {
-		if v > activeState.HighestBid {
-			activeState.AuctionStateMu.Lock()
-			activeState.HighestBid = v
-			activeState.AuctionStateMu.Unlock()
+		if v > highestBidValue {
+			highestBidValue = v
+			highestBidderID = k
 		}
-		user, _ := s.User(k)
-		highestBid = fmt.Sprintf("%s: $%d", user.Username, activeState.HighestBid)
 	}
+
+	if highestBidValue > activeState.HighestBid {
+		activeState.HighestBid = highestBidValue
+	}
+
+	if highestBidderID != "" {
+		user, _ := s.User(highestBidderID)
+		highestBid = fmt.Sprintf("%s: $%d", user.Username, highestBidValue)
+	}
+	activeState.AuctionStateMu.Unlock()
 
 	biddersField = highestBid
 	if biddersField == "" {
