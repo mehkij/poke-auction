@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
@@ -11,21 +12,13 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/joho/godotenv"
+	_ "github.com/lib/pq"
+	"github.com/mehkij/poke-auction/internal/database"
 	"github.com/mehkij/poke-auction/internal/dispatcher"
+	"github.com/mehkij/poke-auction/internal/types"
 )
 
-type Config struct {
-	globalDispatcher *dispatcher.Dispatcher
-}
-
-var Cfg = &Config{
-	globalDispatcher: dispatcher.NewDispatcher(),
-}
-
 func main() {
-	Cfg.globalDispatcher.Start()
-	defer Cfg.globalDispatcher.Stop()
-
 	log.Println("Loading environment variables...")
 	err := godotenv.Load()
 	if err != nil {
@@ -35,6 +28,18 @@ func main() {
 
 	botToken := os.Getenv("BOT_TOKEN")
 	appID := os.Getenv("APP_ID")
+	dbURL := os.Getenv("DB_URL")
+
+	db, err := sql.Open("postgres", dbURL)
+	if err != nil {
+		log.Printf("error connecting to database: %s", err)
+	}
+
+	dbQueries := database.New(db)
+	cfg := &types.GlobalConfig{
+		GlobalDispatcher: dispatcher.NewDispatcher(),
+		Queries:          dbQueries,
+	}
 
 	if botToken == "" || appID == "" {
 		log.Fatal("Required environment variables not set!")
@@ -46,7 +51,7 @@ func main() {
 		log.Fatalf("error creating new session: %s", err)
 	}
 
-	session.AddHandler(HandleInteraction)
+	session.AddHandler(NewInteractionHandler(cfg))
 	session.Identify.Intents = discordgo.IntentsAllWithoutPrivileged
 
 	log.Println("Opening new session...")
@@ -56,6 +61,9 @@ func main() {
 	}
 	defer session.Close()
 	log.Println("Session successfully opened!")
+
+	// guildID := "1363976206461964311"
+	// guildID := "771052015643000834"
 
 	// Setup a simple HTTP server to serve the status of the bot
 	go func() {
@@ -84,6 +92,11 @@ func main() {
 	log.Println("Registering commands...")
 	cmds := RegisterAll(session, appID, "")
 	log.Println("Commands successfully registered!")
+
+	log.Println("Loading global dispatcher...")
+	cfg.GlobalDispatcher.Start()
+	defer cfg.GlobalDispatcher.Stop()
+	log.Println("Global dispatcher loaded!")
 
 	log.Println("The bot is online!")
 
