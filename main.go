@@ -63,7 +63,7 @@ func main() {
 	log.Println("Session successfully opened!")
 
 	// guildID := "1363976206461964311"
-	// guildID := "771052015643000834"
+	guildID := "771052015643000834"
 
 	// Setup a simple HTTP server to serve the status of the bot
 	go func() {
@@ -77,7 +77,7 @@ func main() {
 				"uptime": "%s",
 				"guilds": %d,
 				"ping": %d,
-				"version": "1.1.0"
+				"version": "1.1.3"
 			}`, getUptime(), guilds, session.HeartbeatLatency().Milliseconds())
 
 			w.Write([]byte(res))
@@ -90,7 +90,7 @@ func main() {
 	}()
 
 	log.Println("Registering commands...")
-	cmds := RegisterAll(session, appID, "")
+	cmds := RegisterAll(session, appID, guildID)
 	log.Println("Commands successfully registered!")
 
 	log.Println("Loading global dispatcher...")
@@ -106,7 +106,7 @@ func main() {
 
 	// Clean up by deleting the command
 	for _, cmd := range cmds {
-		err = session.ApplicationCommandDelete(appID, "", cmd.ID)
+		err = session.ApplicationCommandDelete(appID, guildID, cmd.ID)
 		if err != nil {
 			fmt.Println("Cannot delete slash command:", err)
 		}
