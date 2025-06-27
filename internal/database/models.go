@@ -10,7 +10,7 @@ import (
 )
 
 type Config struct {
-	ServerID  int64
+	ServerID  string
 	Key       string
 	Value     string
 	CreatedAt time.Time
@@ -18,7 +18,7 @@ type Config struct {
 }
 
 type Server struct {
-	ID        int64
+	ID        string
 	Name      sql.NullString
 	CreatedAt time.Time
 	UpdatedAt time.Time

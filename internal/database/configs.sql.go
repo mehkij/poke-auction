@@ -15,7 +15,7 @@ WHERE server_id = $1 AND key = $2
 `
 
 type DeleteConfigParams struct {
-	ServerID int64
+	ServerID string
 	Key      string
 }
 
@@ -24,26 +24,27 @@ func (q *Queries) DeleteConfig(ctx context.Context, arg DeleteConfigParams) erro
 	return err
 }
 
-const getAllConfigsForServer = `-- name: GetAllConfigsForServer :many
-SELECT key, value FROM configs
+const getServerConfig = `-- name: GetServerConfig :many
+SELECT server_id, key, value, created_at, updated_at FROM configs
 WHERE server_id = $1
 `
 
-type GetAllConfigsForServerRow struct {
-	Key   string
-	Value string
-}
-
-func (q *Queries) GetAllConfigsForServer(ctx context.Context, serverID int64) ([]GetAllConfigsForServerRow, error) {
-	rows, err := q.db.QueryContext(ctx, getAllConfigsForServer, serverID)
+func (q *Queries) GetServerConfig(ctx context.Context, serverID string) ([]Config, error) {
+	rows, err := q.db.QueryContext(ctx, getServerConfig, serverID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GetAllConfigsForServerRow
+	var items []Config
 	for rows.Next() {
-		var i GetAllConfigsForServerRow
-		if err := rows.Scan(&i.Key, &i.Value); err != nil {
+		var i Config
+		if err := rows.Scan(
+			&i.ServerID,
+			&i.Key,
+			&i.Value,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -57,23 +58,6 @@ func (q *Queries) GetAllConfigsForServer(ctx context.Context, serverID int64) ([
 	return items, nil
 }
 
-const getConfig = `-- name: GetConfig :one
-SELECT value FROM configs
-WHERE server_id = $1 AND key = $2
-`
-
-type GetConfigParams struct {
-	ServerID int64
-	Key      string
-}
-
-func (q *Queries) GetConfig(ctx context.Context, arg GetConfigParams) (string, error) {
-	row := q.db.QueryRowContext(ctx, getConfig, arg.ServerID, arg.Key)
-	var value string
-	err := row.Scan(&value)
-	return value, err
-}
-
 const upsertConfig = `-- name: UpsertConfig :exec
 INSERT INTO configs (server_id, key, value)
 VALUES ($1, $2, $3)
@@ -83,7 +67,7 @@ SET value = EXCLUDED.value,
 `
 
 type UpsertConfigParams struct {
-	ServerID int64
+	ServerID string
 	Key      string
 	Value    string
 }

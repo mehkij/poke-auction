@@ -15,7 +15,7 @@ SELECT id, name, created_at, updated_at FROM servers
 WHERE id = $1
 `
 
-func (q *Queries) GetServer(ctx context.Context, id int64) (Server, error) {
+func (q *Queries) GetServer(ctx context.Context, id string) (Server, error) {
 	row := q.db.QueryRowContext(ctx, getServer, id)
 	var i Server
 	err := row.Scan(
@@ -36,7 +36,7 @@ SET name = EXCLUDED.name,
 `
 
 type UpsertServerParams struct {
-	ID   int64
+	ID   string
 	Name sql.NullString
 }
 

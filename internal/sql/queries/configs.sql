@@ -5,12 +5,8 @@ ON CONFLICT (server_id, key) DO UPDATE
 SET value = EXCLUDED.value,
     updated_at = now();
 
--- name: GetConfig :one
-SELECT value FROM configs
-WHERE server_id = $1 AND key = $2;
-
--- name: GetAllConfigsForServer :many
-SELECT key, value FROM configs
+-- name: GetServerConfig :many
+SELECT * FROM configs
 WHERE server_id = $1;
 
 -- name: DeleteConfig :exec
