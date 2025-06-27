@@ -85,8 +85,6 @@ func ConfigCallback(s *discordgo.Session, i *discordgo.InteractionCreate, cfg *t
 		if key != "" && val != "" {
 			UpdateConfig(i.GuildID, cfg, key, val)
 		}
-
-		// UpdateConfig(i.GuildID, cfg, key, val)
 	}
 
 	config, err := cfg.Queries.GetServerConfig(context.Background(), i.GuildID)
