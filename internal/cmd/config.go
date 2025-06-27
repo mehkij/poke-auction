@@ -103,7 +103,7 @@ func ConfigCallback(s *discordgo.Session, i *discordgo.InteractionCreate, cfg *t
 				// Validate if the user input matches the config field name
 				found := false
 				for i := 0; i < botConfigType.NumField(); i++ {
-					if botConfigType.Field(i).Name == option.Name {
+					if botConfigType.Field(i).Name == option.StringValue() {
 						found = true
 					}
 				}
