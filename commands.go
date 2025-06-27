@@ -62,6 +62,7 @@ var AllCommands = []*Command{
 	NominateCommand,
 	BidCommand,
 	StopAllCommand,
+	ConfigCommand,
 }
 
 // Command definitions
