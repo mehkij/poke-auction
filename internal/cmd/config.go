@@ -42,7 +42,7 @@ func ConfigCallback(s *discordgo.Session, i *discordgo.InteractionCreate, cfg *t
 		log.Printf("guild not found: %s", err)
 		return
 	}
-	server, err := cfg.Queries.GetServer(context.Background(), i.GuildID)
+	_, err = cfg.Queries.GetServer(context.Background(), i.GuildID)
 
 	if err != nil {
 		log.Printf("server not found in DB, creating new record...")
@@ -82,10 +82,14 @@ func ConfigCallback(s *discordgo.Session, i *discordgo.InteractionCreate, cfg *t
 			}
 		}
 
-		UpdateConfig(i.GuildID, cfg, key, val)
+		if key != "" && val != "" {
+			UpdateConfig(i.GuildID, cfg, key, val)
+		}
+
+		// UpdateConfig(i.GuildID, cfg, key, val)
 	}
 
-	config, err := cfg.Queries.GetServerConfig(context.Background(), server.ID)
+	config, err := cfg.Queries.GetServerConfig(context.Background(), i.GuildID)
 	if err != nil {
 		log.Printf("error fetching config from DB: %s", err)
 		return
@@ -100,7 +104,7 @@ func ConfigCallback(s *discordgo.Session, i *discordgo.InteractionCreate, cfg *t
 	}
 
 	embed := &discordgo.MessageEmbed{
-		Title:  fmt.Sprintf("%s's Configuration", guild.ID),
+		Title:  fmt.Sprintf("%s's Configuration", guild.Name),
 		Fields: fields,
 	}
 
