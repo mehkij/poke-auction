@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"log"
 
 	"github.com/bwmarrin/discordgo"
@@ -35,15 +36,16 @@ func ConfigCallback(s *discordgo.Session, i *discordgo.InteractionCreate, cfg *t
 
 	// Check if bot is configured for server. If not, configure it with default values.
 	// Servers in the database are guaranteed to have configuration records.
+
+	guild, err := s.Guild(i.GuildID)
+	if err != nil {
+		log.Printf("guild not found: %s", err)
+		return
+	}
 	server, err := cfg.Queries.GetServer(context.Background(), i.GuildID)
+
 	if err != nil {
 		log.Printf("server not found in DB, creating new record...")
-
-		guild, err := s.Guild(i.GuildID)
-		if err != nil {
-			log.Printf("guild not found: %s", err)
-			return
-		}
 
 		err = cfg.Queries.UpsertServer(context.Background(), database.UpsertServerParams{
 			ID: guild.ID,
@@ -98,6 +100,7 @@ func ConfigCallback(s *discordgo.Session, i *discordgo.InteractionCreate, cfg *t
 	}
 
 	embed := &discordgo.MessageEmbed{
+		Title:  fmt.Sprintf("%s's Configuration", guild.ID),
 		Fields: fields,
 	}
 
