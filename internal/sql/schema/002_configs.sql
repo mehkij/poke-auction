@@ -9,7 +9,7 @@ CREATE TABLE configs(
     CONSTRAINT fk_server FOREIGN KEY (server_id)
         REFERENCES servers(id)
         ON DELETE CASCADE
-)
+);
 
 -- +goose Down
 DROP TABLE configs;

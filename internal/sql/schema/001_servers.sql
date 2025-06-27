@@ -4,7 +4,7 @@ CREATE TABLE servers(
     name TEXT,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
-)
+);
 
 -- +goose Down
 DROP TABLE servers;
