@@ -208,7 +208,9 @@ func BidTimer(s *discordgo.Session, i *discordgo.InteractionCreate, msg *discord
 Making a bid should be blocking so that the order of incoming bids are preserved.
 This also avoids common bugs surrounding timers not properly resetting per bid.
 */
-func BidCallback(s *discordgo.Session, i *discordgo.InteractionCreate, gd *dispatcher.Dispatcher) {
+func BidCallback(s *discordgo.Session, i *discordgo.InteractionCreate, cfg *types.GlobalConfig) {
+	gd := cfg.GlobalDispatcher
+
 	gd.QueueInteractionResponse(s, i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{

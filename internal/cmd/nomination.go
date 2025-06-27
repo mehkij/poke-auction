@@ -98,7 +98,9 @@ func NominationPhase(s *discordgo.Session, i *discordgo.InteractionCreate, activ
 	return nil
 }
 
-func NominateCallback(s *discordgo.Session, i *discordgo.InteractionCreate, gd *dispatcher.Dispatcher) {
+func NominateCallback(s *discordgo.Session, i *discordgo.InteractionCreate, cfg *types.GlobalConfig) {
+	gd := cfg.GlobalDispatcher
+
 	mu.Lock()
 
 	log.Printf("NominateCallback called in channel: %s\n", i.ChannelID)

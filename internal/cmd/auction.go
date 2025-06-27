@@ -173,7 +173,9 @@ func HandleForceStartAuction(s *discordgo.Session, i *discordgo.InteractionCreat
 	}
 }
 
-func AuctionCallback(s *discordgo.Session, i *discordgo.InteractionCreate, gd *dispatcher.Dispatcher) {
+func AuctionCallback(s *discordgo.Session, i *discordgo.InteractionCreate, cfg *types.GlobalConfig) {
+	gd := cfg.GlobalDispatcher
+
 	// Reset participants list at start of new auction
 	participants := make(map[string]*types.Player, 0)
 

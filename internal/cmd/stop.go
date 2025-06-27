@@ -4,11 +4,13 @@ import (
 	"log"
 
 	"github.com/bwmarrin/discordgo"
-	"github.com/mehkij/poke-auction/internal/dispatcher"
+	"github.com/mehkij/poke-auction/internal/types"
 	"github.com/mehkij/poke-auction/internal/utils"
 )
 
-func StopAllCallback(s *discordgo.Session, i *discordgo.InteractionCreate, gd *dispatcher.Dispatcher) {
+func StopAllCallback(s *discordgo.Session, i *discordgo.InteractionCreate, cfg *types.GlobalConfig) {
+	gd := cfg.GlobalDispatcher
+
 	log.Println("Stopping all auctions...")
 	gd.QueueInteractionResponse(s, i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,

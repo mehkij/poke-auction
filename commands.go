@@ -5,14 +5,14 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/mehkij/poke-auction/internal/cmd"
-	"github.com/mehkij/poke-auction/internal/dispatcher"
+	"github.com/mehkij/poke-auction/internal/types"
 )
 
 type Command struct {
 	Name        string
 	Description string
 	Options     []*discordgo.ApplicationCommandOption
-	Callback    func(s *discordgo.Session, i *discordgo.InteractionCreate, gd *dispatcher.Dispatcher)
+	Callback    func(s *discordgo.Session, i *discordgo.InteractionCreate, cfg *types.GlobalConfig)
 }
 
 func RegisterAll(s *discordgo.Session, appID, guildID string) []*discordgo.ApplicationCommand {
@@ -36,22 +36,23 @@ func RegisterAll(s *discordgo.Session, appID, guildID string) []*discordgo.Appli
 	return cmds
 }
 
-func HandleInteraction(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	switch i.Type {
-	case discordgo.InteractionApplicationCommand:
-		for _, cmd := range AllCommands {
-			if i.ApplicationCommandData().Name == cmd.Name {
-				cmd.Callback(s, i, Cfg.globalDispatcher)
-				return
+func NewInteractionHandler(cfg *types.GlobalConfig) func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	return func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+		switch i.Type {
+		case discordgo.InteractionApplicationCommand:
+			for _, cmd := range AllCommands {
+				if i.ApplicationCommandData().Name == cmd.Name {
+					cmd.Callback(s, i, cfg)
+					return
+				}
 			}
-		}
-
-	case discordgo.InteractionMessageComponent:
-		switch i.MessageComponentData().CustomID {
-		case "join_auction":
-			cmd.HandleAuctionInteraction(s, i, Cfg.globalDispatcher)
-		case "force_start":
-			cmd.HandleForceStartAuction(s, i, Cfg.globalDispatcher)
+		case discordgo.InteractionMessageComponent:
+			switch i.MessageComponentData().CustomID {
+			case "join_auction":
+				cmd.HandleAuctionInteraction(s, i, cfg.GlobalDispatcher)
+			case "force_start":
+				cmd.HandleForceStartAuction(s, i, cfg.GlobalDispatcher)
+			}
 		}
 	}
 }
