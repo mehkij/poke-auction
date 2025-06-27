@@ -126,7 +126,7 @@ func ConfigCallback(s *discordgo.Session, i *discordgo.InteractionCreate, cfg *t
 					return
 				}
 
-				ok = ValidateValueOption(option.Name, field)
+				ok = ValidateValueOption(option.StringValue(), field)
 				if ok {
 					val = option.StringValue()
 				} else {
