@@ -5,10 +5,13 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"reflect"
+	"strconv"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/mehkij/poke-auction/internal/database"
 	"github.com/mehkij/poke-auction/internal/types"
+	"github.com/mehkij/poke-auction/internal/utils"
 )
 
 func UpdateConfig(guildID string, cfg *types.GlobalConfig, key, val string) {
@@ -20,6 +23,27 @@ func UpdateConfig(guildID string, cfg *types.GlobalConfig, key, val string) {
 	if err != nil {
 		log.Printf("error inserting record into configs table: %s\n", err)
 		return
+	}
+}
+
+func ValidateValueOption(val string, field reflect.StructField) bool {
+	switch field.Type.Kind() {
+	case reflect.Int:
+		if _, err := strconv.Atoi(val); err == nil {
+			log.Println("Valid int!")
+			return true
+		} else {
+			log.Println("Invalid int")
+			return false
+		}
+
+	case reflect.String:
+		log.Println("Valid string!")
+		return true
+
+	default:
+		log.Println("Unsupported field type")
+		return false
 	}
 }
 
@@ -69,16 +93,47 @@ func ConfigCallback(s *discordgo.Session, i *discordgo.InteractionCreate, cfg *t
 			return
 		}
 
+		botConfigType := reflect.TypeOf(types.BotConfig{})
+
 		var key string
 		var val string
 
 		for _, option := range i.ApplicationCommandData().Options {
 			if option.Name == "field" {
-				key = option.StringValue()
+				// Validate if the user input matches the config field name
+				found := false
+				for i := 0; i < botConfigType.NumField(); i++ {
+					if botConfigType.Field(i).Name == option.Name {
+						found = true
+					}
+				}
+
+				if !found {
+					log.Println("invalid field name passed to config command.")
+					utils.CreateFollowupEphemeralError(s, i, "Invalid field name!")
+					return
+				} else {
+					key = option.StringValue()
+				}
+
 			}
 
 			if option.Name == "value" {
-				val = option.StringValue()
+				// Validate if the user input matches the config field name
+				field, ok := botConfigType.FieldByName(key)
+				if !ok {
+					log.Println("field not found")
+					return
+				}
+
+				ok = ValidateValueOption(option.Name, field)
+				if ok {
+					val = option.StringValue()
+				} else {
+					log.Println("invalid value passed to config field.")
+					utils.CreateFollowupEphemeralError(s, i, "Invalid value!")
+					return
+				}
 			}
 		}
 
