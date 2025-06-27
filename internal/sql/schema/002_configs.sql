@@ -1,6 +1,6 @@
 -- +goose Up
 CREATE TABLE configs(
-    server_id BIGINT NOT NULL,
+    server_id TEXT NOT NULL,
     key TEXT NOT NULL,
     value TEXT NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
