@@ -123,3 +123,24 @@ var StopAllCommand = &Command{
 	Description: "Stop all running Pokemon auctions in the current channel.",
 	Callback:    cmd.StopAllCallback,
 }
+
+// "/config"
+var ConfigCommand = &Command{
+	Name:        "config",
+	Description: "Edit your server's bot configuration.",
+	Options: []*discordgo.ApplicationCommandOption{
+		{
+			Type:        discordgo.ApplicationCommandOptionString,
+			Name:        "field",
+			Description: "The name of the config field that you want to change.",
+			Required:    false,
+		},
+		{
+			Type:        discordgo.ApplicationCommandOptionString,
+			Name:        "value",
+			Description: "The value you want to insert into the target field.",
+			Required:    false,
+		},
+	},
+	Callback: cmd.ConfigCallback,
+}
