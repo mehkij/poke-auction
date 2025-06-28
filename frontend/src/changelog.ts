@@ -7,6 +7,14 @@ type ChangelogEntry = {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "1.2.0",
+    date: "2025-06-28",
+    description: "Per-server configuration is here!",
+    changes: [
+      "Created a new command: /config! Check the GitHub page for more info on how to use the command.",
+    ],
+  },
+  {
     version: "1.1.3",
     date: "2025-06-26",
     description: "It was me, I dealt it!",
