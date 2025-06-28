@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"runtime/debug"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/mehkij/poke-auction/internal/database"
 	"github.com/mehkij/poke-auction/internal/dispatcher"
 	"github.com/mehkij/poke-auction/internal/export"
 	"github.com/mehkij/poke-auction/internal/fetch"
@@ -380,6 +382,18 @@ func BidCallback(s *discordgo.Session, i *discordgo.InteractionCreate, cfg *type
 		})
 	}
 
+	var timerVal string
+	val, err := cfg.Queries.GetConfigOption(context.Background(), database.GetConfigOptionParams{
+		ServerID: i.GuildID,
+		Key:      "BidTimerDuration",
+	})
+	if err != nil {
+		log.Printf("error getting config option from DB: %s", err)
+		timerVal = "30"
+	} else {
+		timerVal = val
+	}
+
 	done := gd.QueueEditMessage(s, i.ChannelID, msg.ID, &discordgo.MessageEdit{
 		Channel: i.ChannelID,
 		ID:      msg.ID,
@@ -390,7 +404,7 @@ func BidCallback(s *discordgo.Session, i *discordgo.InteractionCreate, cfg *type
 				Image:       msg.Embeds[0].Image,
 				Fields:      fields,
 				Footer: &discordgo.MessageEmbedFooter{
-					Text: "Timer: 30",
+					Text: fmt.Sprintf("Timer: %s", timerVal),
 				},
 			},
 		},

@@ -49,7 +49,7 @@ func NewInteractionHandler(cfg *types.GlobalConfig) func(s *discordgo.Session, i
 		case discordgo.InteractionMessageComponent:
 			switch i.MessageComponentData().CustomID {
 			case "join_auction":
-				cmd.HandleAuctionInteraction(s, i, cfg.GlobalDispatcher)
+				cmd.HandleAuctionInteraction(s, i, cfg)
 			case "force_start":
 				cmd.HandleForceStartAuction(s, i, cfg.GlobalDispatcher)
 			}

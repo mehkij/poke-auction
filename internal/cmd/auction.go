@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"strconv"
@@ -8,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/mehkij/poke-auction/internal/database"
 	"github.com/mehkij/poke-auction/internal/dispatcher"
 	"github.com/mehkij/poke-auction/internal/types"
 	"github.com/mehkij/poke-auction/internal/utils"
@@ -18,7 +20,7 @@ var (
 	auctionStates = make(map[string]*types.AuctionState)
 )
 
-func JoinAuction(i *discordgo.InteractionCreate) map[string]*types.Player {
+func JoinAuction(i *discordgo.InteractionCreate, cfg *types.GlobalConfig) map[string]*types.Player {
 	user := i.Member.User
 	username := user.Username
 	id := user.ID
@@ -40,11 +42,29 @@ func JoinAuction(i *discordgo.InteractionCreate) map[string]*types.Player {
 		}
 	}
 
+	var startingAmount int
+
+	val, err := cfg.Queries.GetConfigOption(context.Background(), database.GetConfigOptionParams{
+		ServerID: i.GuildID,
+		Key:      "StartingPokedollarAmount",
+	})
+	if err != nil {
+		log.Printf("error getting config option from DB: %s", err)
+		startingAmount = 10000
+	}
+	v, err := strconv.Atoi(val)
+	if err != nil {
+		log.Printf("error converting string to int: %s", err)
+		startingAmount = 10000
+	} else {
+		startingAmount = v
+	}
+
 	// Add new participant
 	state.Participants[id] = &types.Player{
 		Username:    username,
 		UserID:      id,
-		PokeDollars: 10000,
+		PokeDollars: startingAmount,
 	}
 
 	return state.Participants
@@ -122,13 +142,15 @@ func AuctionTimer(s *discordgo.Session, i *discordgo.InteractionCreate, timerStr
 }
 
 // Called when "Join Auction" button is clicked.
-func HandleAuctionInteraction(s *discordgo.Session, i *discordgo.InteractionCreate, gd *dispatcher.Dispatcher) {
+func HandleAuctionInteraction(s *discordgo.Session, i *discordgo.InteractionCreate, cfg *types.GlobalConfig) {
+	gd := cfg.GlobalDispatcher
+
 	done := gd.QueueInteractionResponse(s, i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseDeferredMessageUpdate,
 	})
 	<-done
 
-	JoinAuction(i)
+	JoinAuction(i, cfg)
 }
 
 // Called when "Force Start" button is clicked.
