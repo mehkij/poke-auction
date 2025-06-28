@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"math/rand"
@@ -8,6 +9,7 @@ import (
 	"time"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/mehkij/poke-auction/internal/database"
 	"github.com/mehkij/poke-auction/internal/dispatcher"
 	"github.com/mehkij/poke-auction/internal/fetch"
 	"github.com/mehkij/poke-auction/internal/types"
@@ -233,5 +235,18 @@ func NominateCallback(s *discordgo.Session, i *discordgo.InteractionCreate, cfg 
 	}
 	activeState.AuctionStateMu.Unlock()
 
-	updateBidTimer(s, i, activeState, updatedMsg, player, gd)
+	var timerString string
+
+	val, err := cfg.Queries.GetConfigOption(context.Background(), database.GetConfigOptionParams{
+		ServerID: i.GuildID,
+		Key:      "BidTimerDuration",
+	})
+	if err != nil {
+		log.Printf("error getting config option from DB: %s", err)
+		timerString = "30"
+	} else {
+		timerString = val
+	}
+
+	updateBidTimer(s, i, activeState, updatedMsg, player, gd, timerString)
 }
