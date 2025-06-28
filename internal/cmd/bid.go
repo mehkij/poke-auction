@@ -19,7 +19,7 @@ import (
 	"github.com/mehkij/poke-auction/internal/utils"
 )
 
-func BidTimer(s *discordgo.Session, i *discordgo.InteractionCreate, msg *discordgo.Message, player *types.Player, pokemon *types.Pokemon, stopSignal chan bool, activeState *types.AuctionState, gd *dispatcher.Dispatcher) {
+func BidTimer(s *discordgo.Session, i *discordgo.InteractionCreate, msg *discordgo.Message, player *types.Player, pokemon *types.Pokemon, stopSignal chan bool, activeState *types.AuctionState, gd *dispatcher.Dispatcher, timerString string) {
 	// Add detailed parameter checking
 	log.Printf("BidTimer parameters check: session=%v, interaction=%v, msg=%v, player=%v, pokemon=%v, stopSignal=%v",
 		s != nil, i != nil, msg != nil, player != nil, pokemon != nil, stopSignal != nil)
@@ -36,7 +36,13 @@ func BidTimer(s *discordgo.Session, i *discordgo.InteractionCreate, msg *discord
 	}
 
 	fmt.Println("Timer starting...")
-	utils.Timer(30, stopSignal, func(duration int) {
+
+	timerInt, err := strconv.Atoi(timerString)
+	if err != nil {
+		log.Printf("error converting timer string to int: %s", err)
+	}
+
+	utils.Timer(timerInt, stopSignal, func(duration int) {
 		// Defensive check for embed
 		if len(msg.Embeds) == 0 {
 			log.Printf("Timer update: message has no embeds!")
@@ -422,11 +428,11 @@ func BidCallback(s *discordgo.Session, i *discordgo.InteractionCreate, cfg *type
 	activeState.AuctionStateMu.Unlock()
 
 	log.Println("About to call updateBidTimer...")
-	updateBidTimer(s, i, activeState, updatedMsg, bidder, gd)
+	updateBidTimer(s, i, activeState, updatedMsg, bidder, gd, timerVal)
 	log.Println("Called updateBidTimer")
 }
 
-func updateBidTimer(s *discordgo.Session, i *discordgo.InteractionCreate, state *types.AuctionState, msg *discordgo.Message, bidder *types.Player, gd *dispatcher.Dispatcher) {
+func updateBidTimer(s *discordgo.Session, i *discordgo.InteractionCreate, state *types.AuctionState, msg *discordgo.Message, bidder *types.Player, gd *dispatcher.Dispatcher, timerString string) {
 	log.Println("Entered updateBidTimer function")
 
 	// Validate parameters
@@ -474,7 +480,7 @@ func updateBidTimer(s *discordgo.Session, i *discordgo.InteractionCreate, state 
 				debug.PrintStack()
 			}
 		}()
-		BidTimer(s, i, msg, bidder, state.NominatedPokemon, newStopSignal, state, gd)
+		BidTimer(s, i, msg, bidder, state.NominatedPokemon, newStopSignal, state, gd, timerString)
 	}()
 	log.Println("Goroutine started")
 }
