@@ -24,6 +24,23 @@ func (q *Queries) DeleteConfig(ctx context.Context, arg DeleteConfigParams) erro
 	return err
 }
 
+const getConfigOption = `-- name: GetConfigOption :one
+SELECT value FROM configs
+WHERE server_id = $1 AND key = $2
+`
+
+type GetConfigOptionParams struct {
+	ServerID string
+	Key      string
+}
+
+func (q *Queries) GetConfigOption(ctx context.Context, arg GetConfigOptionParams) (string, error) {
+	row := q.db.QueryRowContext(ctx, getConfigOption, arg.ServerID, arg.Key)
+	var value string
+	err := row.Scan(&value)
+	return value, err
+}
+
 const getServerConfig = `-- name: GetServerConfig :many
 SELECT server_id, key, value, created_at, updated_at FROM configs
 WHERE server_id = $1
