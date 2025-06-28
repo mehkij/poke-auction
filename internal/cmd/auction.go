@@ -46,7 +46,7 @@ func JoinAuction(i *discordgo.InteractionCreate, cfg *types.GlobalConfig) map[st
 
 	val, err := cfg.Queries.GetConfigOption(context.Background(), database.GetConfigOptionParams{
 		ServerID: i.GuildID,
-		Key:      "StartingPokedollarAmount",
+		Key:      "StartingAmount",
 	})
 	if err != nil {
 		log.Printf("error getting config option from DB: %s", err)
