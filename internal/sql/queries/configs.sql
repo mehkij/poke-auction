@@ -9,6 +9,10 @@ SET value = EXCLUDED.value,
 SELECT * FROM configs
 WHERE server_id = $1;
 
+-- name: GetConfigOption :one
+SELECT value FROM configs
+WHERE server_id = $1 AND key = $2;
+
 -- name: DeleteConfig :exec
 DELETE FROM configs
 WHERE server_id = $1 AND key = $2;
