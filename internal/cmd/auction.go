@@ -52,10 +52,10 @@ func JoinAuction(i *discordgo.InteractionCreate, cfg *types.GlobalConfig) map[st
 		log.Printf("error getting config option from DB: %s", err)
 		startingAmount = 10000
 	}
+
 	v, err := strconv.Atoi(val)
 	if err != nil {
 		log.Printf("error converting string to int: %s", err)
-		startingAmount = 10000
 	} else {
 		startingAmount = v
 	}
