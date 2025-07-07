@@ -29,7 +29,7 @@ function RouteComponent() {
         </Button>
 
         <Button
-          className="flex gap-2 items-center justify-center bg-white hover:bg-gray-100 border-2 border-gray-100"
+          className="flex gap-2 items-center justify-center text-black bg-white hover:bg-gray-100 border-2 border-gray-100"
           onClick={() =>
             window.open("https://github.com/mehkij/poke-auction", "_blank")
           }
