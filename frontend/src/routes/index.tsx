@@ -38,13 +38,13 @@ function RouteComponent() {
           <p>GitHub</p>
         </Button>
       </div>
-      <div className="mt-4">
+      {/* <div className="mt-4">
         <p className="text-red-500 font-bold">
           ATTENTION: The bot has temporarily been reverted to Version 1.1.3
           while an issue with the /config command is being fixed. This means
           /config will be unavailable for use at this time.
         </p>
-      </div>
+      </div> */}
     </div>
   );
 }
