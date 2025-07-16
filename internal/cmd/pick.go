@@ -106,7 +106,7 @@ func PickCallback(s *discordgo.Session, i *discordgo.InteractionCreate, cfg *typ
 	}
 
 	if user, err := s.User(activeState.NominationOrder[0].UserID); err == nil && user != nil {
-		embed.Image = &discordgo.MessageEmbedImage{
+		embed.Thumbnail = &discordgo.MessageEmbedThumbnail{
 			URL: user.AvatarURL(""),
 		}
 	} else {
