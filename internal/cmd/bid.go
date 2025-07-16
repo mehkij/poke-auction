@@ -307,11 +307,13 @@ func BidCallback(s *discordgo.Session, i *discordgo.InteractionCreate, cfg *type
 	bidder, ok := activeState.Participants[i.Member.User.ID]
 	if !ok {
 		log.Println("user not an active participant in this auction")
+		activeState.AuctionStateMu.Unlock()
 		return
 	}
 
 	if bidAmount == 0 {
 		utils.CreateFollowupEphemeralError(s, i, "Bid amount must be greater than 0!")
+		activeState.AuctionStateMu.Unlock()
 		return
 	}
 
@@ -319,6 +321,7 @@ func BidCallback(s *discordgo.Session, i *discordgo.InteractionCreate, cfg *type
 		activeState.BidSoFar[i.Member.User.ID] = bidAmount
 	} else {
 		utils.CreateFollowupEphemeralError(s, i, "Not enough PokeDollars!")
+		activeState.AuctionStateMu.Unlock()
 		return
 	}
 	activeState.AuctionStateMu.Unlock()
