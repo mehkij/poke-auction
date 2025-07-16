@@ -63,6 +63,7 @@ var AllCommands = []*Command{
 	BidCommand,
 	StopAllCommand,
 	ConfigCommand,
+	PickCommand,
 }
 
 // Command definitions
@@ -144,4 +145,19 @@ var ConfigCommand = &Command{
 		},
 	},
 	Callback: cmd.ConfigCallback,
+}
+
+// "/pick"
+var PickCommand = &Command{
+	Name:        "pick",
+	Description: "You're the last one standing, pick your Pokemon!",
+	Options: []*discordgo.ApplicationCommandOption{
+		{
+			Type:        discordgo.ApplicationCommandOptionString,
+			Name:        "name",
+			Description: "The Pokemon's name.",
+			Required:    true,
+		},
+	},
+	Callback: cmd.PickCallback,
 }
