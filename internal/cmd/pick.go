@@ -3,10 +3,12 @@ package cmd
 import (
 	"fmt"
 	"log"
+	"slices"
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/mehkij/poke-auction/internal/export"
+	"github.com/mehkij/poke-auction/internal/fetch"
 	"github.com/mehkij/poke-auction/internal/types"
 )
 
@@ -24,6 +26,20 @@ func PickCallback(s *discordgo.Session, i *discordgo.InteractionCreate, cfg *typ
 		}
 	}
 	mu.Unlock()
+
+	pickedPokemon := i.ApplicationCommandData().Options[0].StringValue()
+
+	if slices.Contains(activeState.PreviouslyNominated, pickedPokemon) {
+		done := gd.QueueInteractionResponse(s, i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: "Cannot nominate a Pokemon that has already been picked by someone! Please choose a different Pokemon!",
+				Flags:   discordgo.MessageFlagsEphemeral,
+			},
+		})
+		<-done
+		return
+	}
 
 	if activeState == nil {
 		gd.QueueInteractionResponse(s, i.Interaction, &discordgo.InteractionResponse{
@@ -58,11 +74,16 @@ func PickCallback(s *discordgo.Session, i *discordgo.InteractionCreate, cfg *typ
 		},
 	})
 
-	pickedPokemon := i.ApplicationCommandData().Options[0].StringValue()
+	// Validate if chosen Pokemon actually exists
+	pokemon, err := fetch.FetchPokemon(activeState.GenNumber, pickedPokemon)
+	if err != nil {
+		log.Printf("error picking pokemon: %s\n", err)
+		return
+	}
 
 	activeState.AuctionStateMu.Lock()
 	activeState.NominationOrder[0].Team = append(activeState.NominationOrder[0].Team, &types.Pokemon{
-		Name: pickedPokemon,
+		Name: pokemon.Name,
 	})
 	activeState.AuctionStateMu.Unlock()
 
@@ -74,8 +95,8 @@ func PickCallback(s *discordgo.Session, i *discordgo.InteractionCreate, cfg *typ
 
 	var team []string
 	activeState.AuctionStateMu.Lock()
-	for _, pokemon := range activeState.NominationOrder[0].Team {
-		team = append(team, pokemon.Name)
+	for _, playersPokemon := range activeState.NominationOrder[0].Team {
+		team = append(team, playersPokemon.Name)
 	}
 	activeState.AuctionStateMu.Unlock()
 
@@ -97,6 +118,10 @@ func PickCallback(s *discordgo.Session, i *discordgo.InteractionCreate, cfg *typ
 		ID:      msg.ID,
 		Embed:   embed,
 	})
+
+	activeState.AuctionStateMu.Lock()
+	activeState.PreviouslyNominated = append(activeState.PreviouslyNominated, pickedPokemon)
+	activeState.AuctionStateMu.Unlock()
 
 	if len(team) == 6 {
 		gd.QueueEditMessage(s, msg.ChannelID, msg.ID, &discordgo.MessageEdit{
