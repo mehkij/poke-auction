@@ -7,6 +7,17 @@ type ChangelogEntry = {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "1.3.0",
+    date: "2025-07-16",
+    description: "A new QoL feature has arrived!",
+    changes: [
+      "Created a new command: /pick! Check the GitHub page for more info on how to use the command.",
+      "Fixed an issue where bidding more money than you currently have caused the bot to break.",
+      "Fixed an issue where bidding below zero would break the bot.",
+      "Re-enabled the config command.",
+    ],
+  },
+  {
     version: "1.2.0",
     date: "2025-06-28",
     description: "Per-server configuration is here!",

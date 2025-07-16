@@ -13,8 +13,13 @@ Currently, the bot has these available commands:
 /stopall
 /config [field] [value]
 ```
+### Config
 
 `/config` takes two optional parameters: `field` and `value`. Using the command by itself displays which configuration options you have access to. To change the option, use the command with the field name and the value you want to set it to. Inputting a field name _requires_ that you input a value, and vice versa. So you cannot do: `/config BidTimerDuration` or `/config 30`.
+
+### Pick
+
+`/pick` takes in the name of the Pokemon as a required parameter. This command can only be used when you are the last person to not have a full team of Pokemon.
 
 > [!IMPORTANT]
 > The /stopall command closes ALL open auctions in a channel. This command should be used in cases where the bot might break unexpectedly, but this is by no means a catch-all solution! Please notify me of any bot-related bugs and issues that may occur.
