@@ -27,20 +27,6 @@ func PickCallback(s *discordgo.Session, i *discordgo.InteractionCreate, cfg *typ
 	}
 	mu.Unlock()
 
-	pickedPokemon := i.ApplicationCommandData().Options[0].StringValue()
-
-	if slices.Contains(activeState.PreviouslyNominated, pickedPokemon) {
-		done := gd.QueueInteractionResponse(s, i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Content: "Cannot nominate a Pokemon that has already been picked by someone! Please choose a different Pokemon!",
-				Flags:   discordgo.MessageFlagsEphemeral,
-			},
-		})
-		<-done
-		return
-	}
-
 	if activeState == nil {
 		gd.QueueInteractionResponse(s, i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
@@ -65,6 +51,20 @@ func PickCallback(s *discordgo.Session, i *discordgo.InteractionCreate, cfg *typ
 		return
 	}
 	activeState.AuctionStateMu.Unlock()
+
+	pickedPokemon := i.ApplicationCommandData().Options[0].StringValue()
+
+	if slices.Contains(activeState.PreviouslyNominated, pickedPokemon) {
+		done := gd.QueueInteractionResponse(s, i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: "Cannot nominate a Pokemon that has already been picked by someone! Please choose a different Pokemon!",
+				Flags:   discordgo.MessageFlagsEphemeral,
+			},
+		})
+		<-done
+		return
+	}
 
 	gd.QueueInteractionResponse(s, i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
