@@ -7,6 +7,14 @@ type ChangelogEntry = {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "1.4.0",
+    date: "2025-07-18",
+    description: "Teams are now easier to keep track of!",
+    changes: [
+      "Added an embed that displays the current teams, updating after every bid phase.",
+    ],
+  },
+  {
     version: "1.3.0",
     date: "2025-07-16",
     description: "A new QoL feature has arrived!",
