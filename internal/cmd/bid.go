@@ -110,6 +110,10 @@ func BidTimer(s *discordgo.Session, i *discordgo.InteractionCreate, msg *discord
 					p.Team = append(p.Team, pokemon)
 					log.Printf("Pokemon %s added to player %s's team", pokemon.Name, p.UserID)
 
+					gd.QueueSendMessage(s, activeState.ChannelID, &discordgo.MessageSend{
+						Content: fmt.Sprintf("Congratulations, %s! You obtained: %s", p.Username, pokemon.Name),
+					})
+
 					if p.PokeDollars == 0 {
 						team := fetch.RollRandomBabyPokemon(p.Team, activeState.GenNumber)
 						p.Team = team
