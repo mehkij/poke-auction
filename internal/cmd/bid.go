@@ -132,11 +132,18 @@ func BidTimer(s *discordgo.Session, i *discordgo.InteractionCreate, msg *discord
 		activeState.BidSoFar = make(map[string]int)
 		activeState.HighestBid = 0
 
-		// Notify users of their remaining balance
-		log.Println("Notifying users of their remaining balance...")
+		// Notify participants of their remaining balances and the current teams
+		log.Println("Notifying users of their remaining balance and the current teams...")
 		var remaining []string
+		var currentTeams []string
 		for _, p := range activeState.Participants {
 			remaining = append(remaining, fmt.Sprintf("%s's Balance: %d", p.Username, p.PokeDollars))
+
+			var team []string
+			for _, pokemon := range p.Team {
+				team = append(team, pokemon.Name)
+			}
+			currentTeams = append(currentTeams, fmt.Sprintf("%s's Team: %s", p.Username, strings.Join(team, ", ")))
 		}
 
 		activeState.AuctionStateMu.Unlock()
@@ -147,6 +154,10 @@ func BidTimer(s *discordgo.Session, i *discordgo.InteractionCreate, msg *discord
 					{
 						Title:       "Player Balances",
 						Description: strings.Join(remaining, "\n"),
+					},
+					{
+						Title:       "Current Teams",
+						Description: strings.Join(currentTeams, "\n"),
 					},
 				},
 			}
@@ -163,6 +174,10 @@ func BidTimer(s *discordgo.Session, i *discordgo.InteractionCreate, msg *discord
 					{
 						Title:       "Player Balances",
 						Description: strings.Join(remaining, "\n"),
+					},
+					{
+						Title:       "Current Teams",
+						Description: strings.Join(currentTeams, "\n"),
 					},
 				},
 			}
