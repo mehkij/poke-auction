@@ -74,14 +74,21 @@ func main() {
 				"uptime": "%s",
 				"guilds": %d,
 				"ping": %d,
-				"version": "1.2.0"
+				"version": "1.4.0"
 			}`, getUptime(), guilds, session.HeartbeatLatency().Milliseconds())
 
 			w.Write([]byte(res))
 		}))
 
 		log.Println("Starting HTTP server on port 8080")
-		if err := http.ListenAndServe(":8080", nil); err != nil {
+		server := &http.Server{
+			Addr:              ":8080",
+			ReadTimeout:       10 * time.Second,
+			WriteTimeout:      10 * time.Second,
+			IdleTimeout:       60 * time.Second,
+			ReadHeaderTimeout: 5 * time.Second,
+		}
+		if err := server.ListenAndServe(); err != nil {
 			log.Printf("HTTP server error: %v", err)
 		}
 	}()
