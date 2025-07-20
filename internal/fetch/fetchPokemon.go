@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"regexp"
 	"strings"
 
 	"github.com/mehkij/poke-auction/internal/types"
@@ -11,6 +12,12 @@ import (
 )
 
 func FetchPokemon(gen int, name string) (*types.Pokemon, error) {
+	// Validate name to contain only allowed characters (letters, numbers, hyphens)
+	validName := regexp.MustCompile(`^[a-zA-Z0-9\-]+$`)
+	if !validName.MatchString(name) {
+		return nil, fmt.Errorf("invalid pokemon name: %s", name)
+	}
+
 	// Even though the randbat data isn't used, it helps validate that a Pokemon is useable in a certain generation.
 	url := "https://pkmn.github.io/randbats/data/gen" + fmt.Sprint(gen) + "randombattle.json"
 	res, err := http.Get(url)
@@ -47,6 +54,12 @@ func FetchPokemon(gen int, name string) (*types.Pokemon, error) {
 }
 
 func FetchPokemonImage(gen int, name string) (string, error) {
+	// Validate name to contain only allowed characters (letters, numbers, hyphens)
+	validName := regexp.MustCompile(`^[a-zA-Z0-9\-]+$`)
+	if !validName.MatchString(name) {
+		return "", fmt.Errorf("invalid pokemon name: %s", name)
+	}
+
 	url := "https://pokeapi.co/api/v2/pokemon/" + name + "/"
 	res, err := http.Get(url)
 	if err != nil {
@@ -69,18 +82,18 @@ func FetchPokemonImage(gen int, name string) (string, error) {
 	var front_default string
 
 	if gen == 9 {
-		front_default = sprites["front_default"].(string)				
+		front_default = sprites["front_default"].(string)
 	} else {
 		genNum := fmt.Sprintf("generation-%s", utils.ToRoman(gen))
 		versions := sprites["versions"].(map[string]any)
 		generation := versions[genNum].(map[string]any)
-		
+
 		var spriteMap map[string]any
 		for _, v := range generation {
 			spriteMap = v.(map[string]any)
 			break
 		}
-		
+
 		front_default = spriteMap["front_default"].(string)
 	}
 
