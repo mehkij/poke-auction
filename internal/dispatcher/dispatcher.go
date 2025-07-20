@@ -123,6 +123,20 @@ func (d *Dispatcher) QueueSendMessage(s *discordgo.Session, channelID string, co
 	return done
 }
 
+func (d *Dispatcher) QueueFollowupMessage(s *discordgo.Session, i *discordgo.InteractionCreate, content string, flags discordgo.MessageFlags) chan *discordgo.Message {
+	done := d.QueueMessage(MessageTask{
+		Operation: func() (*discordgo.Message, error) {
+			return s.FollowupMessageCreate(i.Interaction, true, &discordgo.WebhookParams{
+				Content: content,
+				Flags:   flags,
+			})
+		},
+		ChannelID: i.ChannelID,
+	})
+
+	return done
+}
+
 // QueueInteractionResponse is a helper function to queue an interaction response
 func (d *Dispatcher) QueueInteractionResponse(s *discordgo.Session, i *discordgo.Interaction, response *discordgo.InteractionResponse) chan *discordgo.Message {
 	done := d.QueueMessage(MessageTask{
