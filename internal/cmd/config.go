@@ -11,7 +11,6 @@ import (
 	"github.com/bwmarrin/discordgo"
 	"github.com/mehkij/poke-auction/internal/database"
 	"github.com/mehkij/poke-auction/internal/types"
-	"github.com/mehkij/poke-auction/internal/utils"
 )
 
 func UpdateConfig(guildID string, cfg *types.GlobalConfig, key, val string) {
@@ -110,7 +109,8 @@ func ConfigCallback(s *discordgo.Session, i *discordgo.InteractionCreate, cfg *t
 
 				if !found {
 					log.Println("invalid field name passed to config command.")
-					utils.CreateFollowupEphemeralError(s, i, "Invalid field name!")
+					// utils.CreateFollowupEphemeralError(s, i, "Invalid field name!")
+					gd.QueueFollowupMessage(s, i, "Invalid field name!", discordgo.MessageFlagsEphemeral)
 					return
 				} else {
 					key = option.StringValue()
@@ -131,7 +131,8 @@ func ConfigCallback(s *discordgo.Session, i *discordgo.InteractionCreate, cfg *t
 					val = option.StringValue()
 				} else {
 					log.Println("invalid value passed to config field.")
-					utils.CreateFollowupEphemeralError(s, i, "Invalid value!")
+					// utils.CreateFollowupEphemeralError(s, i, "Invalid value!")
+					gd.QueueFollowupMessage(s, i, "Invalid value!", discordgo.MessageFlagsEphemeral)
 					return
 				}
 			}

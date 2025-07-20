@@ -271,7 +271,8 @@ func BidCallback(s *discordgo.Session, i *discordgo.InteractionCreate, cfg *type
 	mu.Unlock()
 
 	if activeState == nil {
-		utils.CreateFollowupEphemeralError(s, i, "No active auction in bidding phase!")
+		// utils.CreateFollowupEphemeralError(s, i, "No active auction in bidding phase!")
+		gd.QueueFollowupMessage(s, i, "No active auction in bidding phase!", discordgo.MessageFlagsEphemeral)
 		return
 	}
 
@@ -289,18 +290,21 @@ func BidCallback(s *discordgo.Session, i *discordgo.InteractionCreate, cfg *type
 		}
 	}
 	if !found {
-		utils.CreateFollowupEphemeralError(s, i, "You cannot bid anymore, your team is full!")
+		// utils.CreateFollowupEphemeralError(s, i, "You cannot bid anymore, your team is full!")
+		gd.QueueFollowupMessage(s, i, "You cannot bid anymore, your team is full!", discordgo.MessageFlagsEphemeral)
 		return
 	}
 
 	bidAmount, err := strconv.Atoi(i.ApplicationCommandData().Options[0].StringValue())
 	if err != nil {
-		utils.CreateFollowupEphemeralError(s, i, "Invalid bid amount!")
+		// utils.CreateFollowupEphemeralError(s, i, "Invalid bid amount!")
+		gd.QueueFollowupMessage(s, i, "Invalid bid amount!", discordgo.MessageFlagsEphemeral)
 		return
 	}
 
 	if bidAmount <= activeState.HighestBid {
-		utils.CreateFollowupEphemeralError(s, i, "Your bid must be higher than the highest bid!")
+		// utils.CreateFollowupEphemeralError(s, i, "Your bid must be higher than the highest bid!")
+		gd.QueueFollowupMessage(s, i, "Your bid must be higher than the highest bid!", discordgo.MessageFlagsEphemeral)
 		return
 	}
 
@@ -312,13 +316,15 @@ func BidCallback(s *discordgo.Session, i *discordgo.InteractionCreate, cfg *type
 
 	if msg == nil {
 		log.Printf("message is nil for msgID: %s, channelID: %s\n", msgID, i.ChannelID)
-		utils.CreateFollowupEphemeralError(s, i, "Internal error: auction message not found.")
+		// utils.CreateFollowupEphemeralError(s, i, "Internal error: auction message not found.")
+		gd.QueueFollowupMessage(s, i, "Internal error: auction message not found.", discordgo.MessageFlagsEphemeral)
 		return
 	}
 
 	if len(msg.Embeds) == 0 {
 		log.Printf("no embeds found in message of ID: %s\n", msg.ID)
-		utils.CreateFollowupEphemeralError(s, i, "Internal error: no embed found for auction message.")
+		// utils.CreateFollowupEphemeralError(s, i, "Internal error: no embed found for auction message.")
+		gd.QueueFollowupMessage(s, i, "Internal error: no embed found for auction message.", discordgo.MessageFlagsEphemeral)
 		return
 	}
 
@@ -331,7 +337,9 @@ func BidCallback(s *discordgo.Session, i *discordgo.InteractionCreate, cfg *type
 	}
 
 	if bidAmount == 0 {
-		utils.CreateFollowupEphemeralError(s, i, "Bid amount must be greater than 0!")
+		// utils.CreateFollowupEphemeralError(s, i, "Bid amount must be greater than 0!")
+		gd.QueueFollowupMessage(s, i, "Bid amount must be greater than 0!", discordgo.MessageFlagsEphemeral)
+
 		activeState.AuctionStateMu.Unlock()
 		return
 	}
@@ -339,19 +347,22 @@ func BidCallback(s *discordgo.Session, i *discordgo.InteractionCreate, cfg *type
 	if bidder.PokeDollars >= bidAmount {
 		activeState.BidSoFar[i.Member.User.ID] = bidAmount
 	} else {
-		utils.CreateFollowupEphemeralError(s, i, "Not enough PokeDollars!")
+		// utils.CreateFollowupEphemeralError(s, i, "Not enough PokeDollars!")
+		gd.QueueFollowupMessage(s, i, "Not enough PokeDollars!", discordgo.MessageFlagsEphemeral)
 		activeState.AuctionStateMu.Unlock()
 		return
 	}
 	activeState.AuctionStateMu.Unlock()
 
 	if bidder == nil {
-		utils.CreateFollowupEphemeralError(s, i, "You are not a participant in this auction!")
+		// utils.CreateFollowupEphemeralError(s, i, "You are not a participant in this auction!")
+		gd.QueueFollowupMessage(s, i, "You are not a participant in this auction!", discordgo.MessageFlagsEphemeral)
 		return
 	}
 
 	if activeState.NominatedPokemon == nil {
-		utils.CreateFollowupEphemeralError(s, i, "No Pokemon has been nominated for bidding!")
+		// utils.CreateFollowupEphemeralError(s, i, "No Pokemon has been nominated for bidding!")
+		gd.QueueFollowupMessage(s, i, "No Pokemon has been nominated for bidding!", discordgo.MessageFlagsEphemeral)
 		return
 	}
 
