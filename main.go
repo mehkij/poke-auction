@@ -77,7 +77,11 @@ func main() {
 				"version": "1.4.0"
 			}`, getUptime(), guilds, session.HeartbeatLatency().Milliseconds())
 
-			w.Write([]byte(res))
+			_, err := w.Write([]byte(res))
+			if err != nil {
+				log.Printf("error setting up HTTP server %s", err)
+				return
+			}
 		}))
 
 		log.Println("Starting HTTP server on port 8080")
