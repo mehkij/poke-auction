@@ -135,7 +135,7 @@ func PickCallback(s *discordgo.Session, i *discordgo.InteractionCreate, cfg *typ
 			},
 		})
 
-		export.ExportTeam(s, i, activeState.Participants, activeState.GenNumber)
+		export.ExportTeam(s, i, activeState.Participants, activeState.GenNumber, gd)
 		delete(auctionStates, msg.ID)
 	}
 }

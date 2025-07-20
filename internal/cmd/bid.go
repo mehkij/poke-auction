@@ -206,7 +206,7 @@ func BidTimer(s *discordgo.Session, i *discordgo.InteractionCreate, msg *discord
 				},
 			})
 
-			export.ExportTeam(s, i, activeState.Participants, activeState.GenNumber)
+			export.ExportTeam(s, i, activeState.Participants, activeState.GenNumber, gd)
 			return
 		}
 

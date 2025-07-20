@@ -5,10 +5,11 @@ import (
 	"fmt"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/mehkij/poke-auction/internal/dispatcher"
 	"github.com/mehkij/poke-auction/internal/types"
 )
 
-func ExportTeam(s *discordgo.Session, i *discordgo.InteractionCreate, players map[string]*types.Player, gen int) {
+func ExportTeam(s *discordgo.Session, i *discordgo.InteractionCreate, players map[string]*types.Player, gen int, gd *dispatcher.Dispatcher) {
 	var files []*discordgo.File
 	for _, player := range players {
 		var d []byte
@@ -29,5 +30,5 @@ func ExportTeam(s *discordgo.Session, i *discordgo.InteractionCreate, players ma
 		Files:   files,
 	}
 
-	s.ChannelMessageSendComplex(i.ChannelID, msg)
+	gd.QueueSendMessage(s, i.ChannelID, msg)
 }
