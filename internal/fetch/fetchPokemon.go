@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 
@@ -19,8 +20,10 @@ func FetchPokemon(gen int, name string) (*types.Pokemon, error) {
 	}
 
 	// Even though the randbat data isn't used, it helps validate that a Pokemon is useable in a certain generation.
-	url := "https://pkmn.github.io/randbats/data/gen" + fmt.Sprint(gen) + "randombattle.json"
-	res, err := http.Get(url)
+	u, _ := url.Parse("https://pkmn.github.io/randbats/data/gen")
+	u.Path += fmt.Sprintf("%drandombattle.json", gen)
+	res, err := http.Get(u.String())
+
 	if err != nil {
 		return nil, err
 	}
@@ -60,8 +63,9 @@ func FetchPokemonImage(gen int, name string) (string, error) {
 		return "", fmt.Errorf("invalid pokemon name: %s", name)
 	}
 
-	url := "https://pokeapi.co/api/v2/pokemon/" + name + "/"
-	res, err := http.Get(url)
+	u, _ := url.Parse("https://pokeapi.co/api/v2/pokemon/")
+	u.Path += name + "/"
+	res, err := http.Get(u.String())
 	if err != nil {
 		return "", err
 	}
