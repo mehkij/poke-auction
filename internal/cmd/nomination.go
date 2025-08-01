@@ -26,6 +26,7 @@ func RollNominationOrder(activeState *types.AuctionState) []*types.Player {
 	copy(remaining, participants)
 
 	var order []*types.Player
+	// #nosec G404 -- using math/rand is fine as rolling for player order is not security-critical
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	for len(remaining) > 0 {

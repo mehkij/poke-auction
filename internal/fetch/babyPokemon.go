@@ -14,6 +14,7 @@ type BabyPokemon struct {
 
 func RollRandomBabyPokemon(currentTeam []*types.Pokemon, gen int) []*types.Pokemon {
 	remaining := 6 - len(currentTeam)
+	// #nosec G404 -- using math/rand is fine as rolling for baby Pokemon is not security-critical
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 	alreadyPicked := make(map[string]bool)
 
