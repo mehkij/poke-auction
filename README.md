@@ -14,7 +14,9 @@ Currently, the bot has these available commands:
 /bid [amount]
 /stopall
 /config [field] [value]
+/pick [pokemon]
 ```
+
 ### Config
 
 `/config` takes two optional parameters: `field` and `value`. Using the command by itself displays which configuration options you have access to. To change the option, use the command with the field name and the value you want to set it to. Inputting a field name _requires_ that you input a value, and vice versa. So you cannot do: `/config BidTimerDuration` or `/config 30`.
