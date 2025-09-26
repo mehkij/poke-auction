@@ -84,6 +84,7 @@ func ConfigCallback(s *discordgo.Session, i *discordgo.InteractionCreate, cfg *t
 
 		UpdateConfig(guild.ID, cfg, "BidTimerDuration", "30")
 		UpdateConfig(guild.ID, cfg, "StartingAmount", "10000")
+		UpdateConfig(guild.ID, cfg, "MinimumBid", "50")
 	}
 
 	if i.ApplicationCommandData().Options != nil {
@@ -109,7 +110,6 @@ func ConfigCallback(s *discordgo.Session, i *discordgo.InteractionCreate, cfg *t
 
 				if !found {
 					log.Println("invalid field name passed to config command.")
-					// utils.CreateFollowupEphemeralError(s, i, "Invalid field name!")
 					gd.QueueFollowupMessage(s, i, "Invalid field name!", discordgo.MessageFlagsEphemeral)
 					return
 				} else {

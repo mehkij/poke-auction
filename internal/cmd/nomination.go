@@ -6,6 +6,7 @@ import (
 	"log"
 	"math/rand"
 	"slices"
+	"strconv"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
@@ -195,8 +196,24 @@ func NominateCallback(s *discordgo.Session, i *discordgo.InteractionCreate, cfg 
 		URL: pokemon.Sprite,
 	}
 
-	activeState.BidSoFar[i.Member.User.ID] = 50
-	activeState.HighestBid = 50
+	var minBidVal int
+	val, err := cfg.Queries.GetConfigOption(context.Background(), database.GetConfigOptionParams{
+		ServerID: i.GuildID,
+		Key:      "MinimumBid",
+	})
+	if err != nil {
+		log.Printf("error getting config option from DB: %s", err)
+		minBidVal = 50
+	} else {
+		minBidVal, err = strconv.Atoi(val)
+		if err != nil {
+			log.Printf("error converting string to int: %s", err)
+			minBidVal = 50
+		}
+	}
+
+	activeState.BidSoFar[i.Member.User.ID] = minBidVal
+	activeState.HighestBid = minBidVal
 	edit := &discordgo.MessageEdit{
 		Channel: msg.ChannelID,
 		ID:      msg.ID,
@@ -207,7 +224,7 @@ func NominateCallback(s *discordgo.Session, i *discordgo.InteractionCreate, cfg 
 				Fields: []*discordgo.MessageEmbedField{
 					{
 						Name:  "Highest Bid",
-						Value: fmt.Sprintf("%s: $%d", i.Member.User.Username, 50),
+						Value: fmt.Sprintf("%s: $%d", i.Member.User.Username, minBidVal),
 					},
 				},
 			},
@@ -238,7 +255,7 @@ func NominateCallback(s *discordgo.Session, i *discordgo.InteractionCreate, cfg 
 
 	var timerString string
 
-	val, err := cfg.Queries.GetConfigOption(context.Background(), database.GetConfigOptionParams{
+	val, err = cfg.Queries.GetConfigOption(context.Background(), database.GetConfigOptionParams{
 		ServerID: i.GuildID,
 		Key:      "BidTimerDuration",
 	})
