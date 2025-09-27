@@ -74,8 +74,12 @@ func PickCallback(s *discordgo.Session, i *discordgo.InteractionCreate, cfg *typ
 		},
 	})
 
+	activeState.AuctionStateMu.Lock()
+	natdex := activeState.NatDexEnabled
+	activeState.AuctionStateMu.Unlock()
+
 	// Validate if chosen Pokemon actually exists
-	pokemon, err := fetch.FetchPokemon(activeState.GenNumber, pickedPokemon)
+	pokemon, err := fetch.FetchPokemon(activeState.GenNumber, pickedPokemon, natdex)
 	if err != nil {
 		log.Printf("error picking pokemon: %s\n", err)
 		return

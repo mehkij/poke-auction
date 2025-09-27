@@ -176,7 +176,11 @@ func NominateCallback(s *discordgo.Session, i *discordgo.InteractionCreate, cfg 
 	})
 	<-done
 
-	pokemon, err := fetch.FetchPokemon(activeState.GenNumber, pokemonName)
+	activeState.AuctionStateMu.Lock()
+	natdex := activeState.NatDexEnabled
+	activeState.AuctionStateMu.Unlock()
+
+	pokemon, err := fetch.FetchPokemon(activeState.GenNumber, pokemonName, natdex)
 	if err != nil {
 		log.Printf("error nominating pokemon: %s\n", err)
 		return

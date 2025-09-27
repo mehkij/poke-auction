@@ -32,13 +32,22 @@ func ValidateValueOption(val string, field reflect.StructField) bool {
 			log.Println("Valid int!")
 			return true
 		} else {
-			log.Println("Invalid int")
+			log.Println("Invalid int!")
 			return false
 		}
 
 	case reflect.String:
 		log.Println("Valid string!")
 		return true
+
+	case reflect.Bool:
+		if _, err := strconv.ParseBool(val); err == nil {
+			log.Println("Valid bool!")
+			return true
+		} else {
+			log.Println("Invalid bool!")
+			return false
+		}
 
 	default:
 		log.Println("Unsupported field type")
@@ -85,6 +94,7 @@ func ConfigCallback(s *discordgo.Session, i *discordgo.InteractionCreate, cfg *t
 		UpdateConfig(guild.ID, cfg, "BidTimerDuration", "30")
 		UpdateConfig(guild.ID, cfg, "StartingAmount", "10000")
 		UpdateConfig(guild.ID, cfg, "MinimumBid", "50")
+		UpdateConfig(guild.ID, cfg, "EnableNationalDex", "false")
 	}
 
 	if i.ApplicationCommandData().Options != nil {
@@ -131,7 +141,6 @@ func ConfigCallback(s *discordgo.Session, i *discordgo.InteractionCreate, cfg *t
 					val = option.StringValue()
 				} else {
 					log.Println("invalid value passed to config field.")
-					// utils.CreateFollowupEphemeralError(s, i, "Invalid value!")
 					gd.QueueFollowupMessage(s, i, "Invalid value!", discordgo.MessageFlagsEphemeral)
 					return
 				}

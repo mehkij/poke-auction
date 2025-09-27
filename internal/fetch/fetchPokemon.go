@@ -14,43 +14,34 @@ import (
 	"golang.org/x/text/language"
 )
 
-func FetchPokemon(gen int, name string) (*types.Pokemon, error) {
+func FetchPokemon(gen int, name string, natdex bool) (*types.Pokemon, error) {
 	// Validate name to contain only allowed characters (letters, numbers, hyphens)
 	validName := regexp.MustCompile(`^[a-zA-Z0-9\-\s]+$`)
 	if !validName.MatchString(name) {
 		return nil, fmt.Errorf("invalid pokemon name: %s", name)
 	}
 
-	// Even though the randbat data isn't used, it helps validate that a Pokemon is useable in a certain generation.
-	u, _ := url.Parse("https://pkmn.github.io/randbats/data/gen")
-	u.Path += fmt.Sprintf("%drandombattle.json", gen)
-	res, err := http.Get(u.String())
-
-	if err != nil {
-		return nil, err
-	}
-	defer res.Body.Close()
-
-	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("HTTP request failed with status code: %d", res.StatusCode)
-	}
-
-	var pokemonMap types.PokemonMap
-	if err := json.NewDecoder(res.Body).Decode(&pokemonMap); err != nil {
-		return nil, fmt.Errorf("failed to decode JSON: %w", err)
-	}
-
 	titleCase := cases.Title(language.English)
 	pokemonName := titleCase.String(name)
-	pokemon, exists := pokemonMap[pokemonName]
-	if !exists {
-		return nil, fmt.Errorf("pokemon %s not found", name)
+
+	var pokemon *types.Pokemon
+	if !natdex {
+		p, err := validatePokemon(gen, pokemonName)
+		if err != nil {
+			return nil, fmt.Errorf("error when validating pokemon against randbat set: %s", err)
+		}
+
+		pokemon = p
+	} else {
+		pokemon = &types.Pokemon{Name: pokemonName}
 	}
 
 	// Replace whitespace with dashes, as PokeAPI doesn't support spaces in Pokemon names
 	var validatedName string
 	if strings.Contains(name, " ") {
 		validatedName = strings.ReplaceAll(pokemonName, " ", "-")
+	} else {
+		validatedName = pokemonName
 	}
 
 	sprite, err := FetchPokemonImage(gen, validatedName)
@@ -58,7 +49,6 @@ func FetchPokemon(gen int, name string) (*types.Pokemon, error) {
 		return nil, err
 	}
 
-	pokemon.Name = pokemonName
 	pokemon.Sprite = sprite
 
 	return pokemon, nil
@@ -110,4 +100,34 @@ func FetchPokemonImage(gen int, name string) (string, error) {
 	}
 
 	return front_default, nil
+}
+
+func validatePokemon(gen int, pokemonName string) (*types.Pokemon, error) {
+	// Even though the randbat data isn't used, it helps validate that a Pokemon is useable in a certain generation.
+	u, _ := url.Parse("https://pkmn.github.io/randbats/data/gen")
+	u.Path += fmt.Sprintf("%drandombattle.json", gen)
+	res, err := http.Get(u.String())
+
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("HTTP request failed with status code: %d", res.StatusCode)
+	}
+
+	var pokemonMap types.PokemonMap
+	if err := json.NewDecoder(res.Body).Decode(&pokemonMap); err != nil {
+		return nil, fmt.Errorf("failed to decode JSON: %w", err)
+	}
+
+	_, exists := pokemonMap[pokemonName]
+	if !exists {
+		return nil, fmt.Errorf("pokemon %s not found", pokemonName)
+	}
+
+	pokemon := &types.Pokemon{Name: pokemonName}
+
+	return pokemon, nil
 }

@@ -272,12 +272,31 @@ func AuctionCallback(s *discordgo.Session, i *discordgo.InteractionCreate, cfg *
 	newInteraction.Message = msg
 
 	stopSignal := make(chan bool)
+
+	// Check if server set NatDex to true
+	var natDexEnabled bool
+	val, err := cfg.Queries.GetConfigOption(context.Background(), database.GetConfigOptionParams{
+		ServerID: i.GuildID,
+		Key:      "EnableNationalDex",
+	})
+	if err != nil {
+		log.Printf("error getting config option from DB: %s", err)
+		natDexEnabled = false
+	}
+
+	v, err := strconv.ParseBool(val)
+	if err != nil {
+		log.Printf("error converting string to bool: %s", err)
+	} else {
+		natDexEnabled = v
+	}
+
 	mu.Lock()
 	if oldState, exists := auctionStates[msg.ID]; exists {
 		close(oldState.StopSignal)
 		delete(auctionStates, msg.ID)
 	}
-	auctionStates[msg.ID] = &types.AuctionState{Participants: participants, StopSignal: stopSignal, GenNumber: gen, ChannelID: msg.ChannelID}
+	auctionStates[msg.ID] = &types.AuctionState{Participants: participants, StopSignal: stopSignal, GenNumber: gen, ChannelID: msg.ChannelID, NatDexEnabled: natDexEnabled}
 	log.Printf("Auction state set: msgID=%s, ChannelID=%s", msg.ID, msg.ChannelID)
 	mu.Unlock()
 
