@@ -10,11 +10,13 @@ import (
 
 	"github.com/mehkij/poke-auction/internal/types"
 	"github.com/mehkij/poke-auction/internal/utils"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 func FetchPokemon(gen int, name string) (*types.Pokemon, error) {
 	// Validate name to contain only allowed characters (letters, numbers, hyphens)
-	validName := regexp.MustCompile(`^[a-zA-Z0-9\-]+$`)
+	validName := regexp.MustCompile(`^[a-zA-Z0-9\-\s]+$`)
 	if !validName.MatchString(name) {
 		return nil, fmt.Errorf("invalid pokemon name: %s", name)
 	}
@@ -38,14 +40,20 @@ func FetchPokemon(gen int, name string) (*types.Pokemon, error) {
 		return nil, fmt.Errorf("failed to decode JSON: %w", err)
 	}
 
-	pokemonName := strings.ToUpper(name[:1]) + name[1:]
-
+	titleCase := cases.Title(language.English)
+	pokemonName := titleCase.String(name)
 	pokemon, exists := pokemonMap[pokemonName]
 	if !exists {
 		return nil, fmt.Errorf("pokemon %s not found", name)
 	}
 
-	sprite, err := FetchPokemonImage(gen, pokemonName)
+	// Replace whitespace with dashes, as PokeAPI doesn't support spaces in Pokemon names
+	var validatedName string
+	if strings.Contains(name, " ") {
+		validatedName = strings.ReplaceAll(pokemonName, " ", "-")
+	}
+
+	sprite, err := FetchPokemonImage(gen, validatedName)
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +80,7 @@ func FetchPokemonImage(gen int, name string) (string, error) {
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("HTTP request failed with status code: %d", res.StatusCode)
+		return "", fmt.Errorf("HTTP request to PokeAPI failed with status code: %d", res.StatusCode)
 	}
 
 	var data map[string]any

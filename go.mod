@@ -1,6 +1,10 @@
 module github.com/mehkij/poke-auction
 
-go 1.23.6
+go 1.24.0
+
+toolchain go1.24.6
+
+require golang.org/x/text v0.29.0
 
 require (
 	github.com/bwmarrin/discordgo v0.28.1 // indirect
