@@ -45,13 +45,7 @@ jobs:
           go-version: "1.24.0"
 
       - name: Check for formatting issues
-        run: |
-          unformatted=$(gofmt -l $(go list ./...))
-          if [ -n "$unformatted" ]; then
-            echo "gofmt found unformatted files:"
-            echo "$unformatted"
-            exit 1
-          fi
+        run: test -z $(go fmt ./...)
 
       - name: Install staticcheck
         run: go install honnef.co/go/tools/cmd/staticcheck@latest
