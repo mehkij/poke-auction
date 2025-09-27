@@ -10,6 +10,7 @@ type AuctionState struct {
 	GenNumber        int
 	ChannelID        string
 	BalanceMessageID string
+	NatDexEnabled    bool
 
 	CurrentNominator    int
 	NominationOrder     []*Player
