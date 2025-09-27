@@ -7,10 +7,14 @@ type ChangelogEntry = {
 
 export const changelog: ChangelogEntry[] = [
   {
-    version: "1.4.1",
+    version: "1.5.0",
     date: "2025-09-26",
     description: "Handing over a little more control!",
-    changes: ["Added a new MinimumBid option to the /config command."],
+    changes: [
+      "Added a new MinimumBid option to the /config command.",
+      "Added a new EnableNationalDex option to the /config command.",
+      "Fixed an issue where Pokemon with spaces in their names weren't able to be nominated (for example: Iron Hands).",
+    ],
   },
   {
     version: "1.4.0",
