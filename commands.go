@@ -64,6 +64,7 @@ var AllCommands = []*Command{
 	StopAllCommand,
 	ConfigCommand,
 	PickCommand,
+	HelpCommand,
 }
 
 // Command definitions
@@ -160,4 +161,18 @@ var PickCommand = &Command{
 		},
 	},
 	Callback: cmd.PickCallback,
+}
+
+var HelpCommand = &Command{
+	Name:        "help",
+	Description: "Get help on what commands are available and how to use them!",
+	Options: []*discordgo.ApplicationCommandOption{
+		{
+			Type:        discordgo.ApplicationCommandOptionString,
+			Name:        "command",
+			Description: "The name of the command.",
+			Required:    false,
+		},
+	},
+	Callback: cmd.HelpCallback,
 }
