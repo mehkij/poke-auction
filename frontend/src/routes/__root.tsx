@@ -25,6 +25,13 @@ function RootComponent() {
           >
             Changelog
           </Link>
+          <Link
+            to="/updates"
+            className="[&.active]:bg-gray-400/25 rounded p-2 transition-all"
+            viewTransition
+          >
+            Updates
+          </Link>
         </div>
         <ThemeToggle />
       </nav>
